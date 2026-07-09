@@ -14,7 +14,7 @@ const STATIONS = [
     uuid: '09370c05-1041-4395-a5d4-b8db6e59c4c8',
     name: 'Schleswig',
     number: '9610040',
-    position: 'Innere Schlei · Stadthafen',
+    position: 'Innere Schlei',
     lat: 54.511432, lon: 9.569059,
     colorVar: '--s-schleswig',
     // Fallback, wird live überschrieben (Bezugszeitraum 2010–2020)
@@ -26,7 +26,7 @@ const STATIONS = [
     uuid: 'b09f2243-60f0-469a-8f3b-0ea6abc83267',
     name: 'Kappeln',
     number: '9610035',
-    position: 'Äußere Schlei · Hafen',
+    position: 'Äußere Schlei',
     lat: 54.664384, lon: 9.937938,
     colorVar: '--s-kappeln',
     charVals: { MNW: 410, MW: 506, MHW: 610 },
@@ -63,6 +63,11 @@ const state = {
   schleimuende: null,   // Livewert, falls die Station wieder sendet
   wind: null,           // aktuelle DWD-Windmessung
   windHistory: null,    // stündliche Windmessungen der letzten 31 Tage
+  windForecast: null,   // stündliche Windvorhersage +48 h (Open-Meteo/ICON)
+  showForecast: true,   // Ausblick im Verlaufs-Chart anzeigen
+  alerts: [],           // aktive amtliche DWD-Warnungen
+  marine: null,         // Wassertemperatur/Welle vor Schleimünde (Modell)
+  badewasser: null,     // Badestellen an der Schlei (Open Data SH)
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -120,6 +125,237 @@ function estimateTrend(series) {
   if (older.length < 2) return 0;
   const diff = last.v - older[0].v;
   return Math.abs(diff) < 2 ? 0 : Math.sign(diff);
+}
+
+/* ── SONNENSTAND ─────────────────────────────────────────────────
+   NOAA-Näherung (±0,2°), ganz ohne API. Referenzpunkt: Mitte der Schlei. */
+
+const SUN_POS = { lat: 54.58, lon: 9.82 };
+
+function sunPosition(date) {
+  const rad = Math.PI / 180;
+  const d = date.getTime() / 86400000 - 10957.5;               // Tage seit J2000
+  const g = rad * (357.529 + 0.98560028 * d);
+  const q = 280.459 + 0.98564736 * d;
+  const L = rad * (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g));
+  const e = rad * 23.439;
+  const RA = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmstH = 18.697374558 + 24.06570982441908 * d;
+  const H = rad * (((gmstH * 15 + SUN_POS.lon) % 360 + 360) % 360) - RA;
+  const lat = rad * SUN_POS.lat;
+  const el = Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(H));
+  const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(lat) - Math.tan(dec) * Math.cos(lat)) / rad + 180;
+  return { el: el / rad, az: ((az % 360) + 360) % 360 };
+}
+
+/* Auf-/Untergang und Kulmination durch Abtasten des Kalendertags (2-min-Raster) */
+function sunTimes(now = new Date()) {
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  let rise = null, set = null, culm = { el: -90, t: null };
+  let prev = sunPosition(start).el;
+  for (let m = 2; m <= 1440; m += 2) {
+    const t = new Date(start.getTime() + m * 60e3);
+    const { el } = sunPosition(t);
+    if (prev <= -0.833 && el > -0.833 && !rise) rise = t;
+    if (prev > -0.833 && el <= -0.833) set = t;
+    if (el > culm.el) culm = { el, t };
+    prev = el;
+  }
+  return { rise, set, culm };
+}
+
+/* Sonnenbogen im Hero: Ost-West kartentreu (Aufgang rechts über der Ostsee,
+   Untergang links), Bogenhöhe = tatsächliche Sonnenhöhe. */
+function renderSunLayer() {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = $('#fjord-svg');
+  let layer = $('#sun-layer');
+  if (!layer) {
+    layer = document.createElementNS(svgNS, 'g');
+    layer.setAttribute('id', 'sun-layer');
+    svg.insertBefore(layer, $('#fjord-body'));
+  }
+  layer.replaceChildren();
+
+  const now = new Date();
+  const { rise, set } = sunTimes(now);
+  if (!rise || !set) return;                     // Polartag/-nacht: hier nicht relevant
+
+  const azR = sunPosition(rise).az, azS = sunPosition(set).az;
+  const X_R = 985, X_L = 15;                     // Aufgang rechts (Ost), Untergang links (West)
+  const xOfAz = (az) => X_R - ((az - azR) / (azS - azR)) * (X_R - X_L);
+  const yOfEl = (el) => -10 - (Math.max(0, el) / 65) * 46;
+
+  // Bogen abtasten
+  const pts = [];
+  const span = set.getTime() - rise.getTime();
+  for (let i = 0; i <= 60; i++) {
+    const p = sunPosition(new Date(rise.getTime() + (span * i) / 60));
+    pts.push(`${i ? 'L' : 'M'}${xOfAz(p.az).toFixed(1)},${yOfEl(p.el).toFixed(1)}`);
+  }
+  const arc = document.createElementNS(svgNS, 'path');
+  arc.setAttribute('d', pts.join(''));
+  arc.setAttribute('class', 'sun-arc');
+  layer.appendChild(arc);
+
+  // Auf-/Untergang beschriften (Zeit + Himmelsrichtung)
+  const mkLabel = (x, anchor, txt) => {
+    const t = document.createElementNS(svgNS, 'text');
+    t.setAttribute('x', x); t.setAttribute('y', 8);
+    t.setAttribute('text-anchor', anchor);
+    t.setAttribute('class', 'sun-time');
+    t.textContent = txt;
+    layer.appendChild(t);
+  };
+  mkLabel(X_R + 14, 'end', `↑ ${fmtTime.format(rise)} · ${compassPoint(azR)}`);
+  mkLabel(X_L - 14, 'start', `↓ ${fmtTime.format(set)} · ${compassPoint(azS)}`);
+
+  // Aktuelle Sonne
+  const cur = sunPosition(now);
+  if (cur.el > -0.833 && now >= rise && now <= set) {
+    const cx = xOfAz(cur.az), cy = yOfEl(cur.el);
+    const glow = document.createElementNS(svgNS, 'circle');
+    glow.setAttribute('cx', cx); glow.setAttribute('cy', cy); glow.setAttribute('r', 17);
+    glow.setAttribute('class', 'sun-glow');
+    const disc = document.createElementNS(svgNS, 'circle');
+    disc.setAttribute('cx', cx); disc.setAttribute('cy', cy); disc.setAttribute('r', 7.5);
+    disc.setAttribute('class', 'sun-disc');
+    const title = document.createElementNS(svgNS, 'title');
+    title.textContent = `Sonne: ${Math.round(cur.el)}° hoch, im ${compassPoint(cur.az)} (${Math.round(cur.az)}°)`;
+    disc.appendChild(title);
+    layer.append(glow, disc);
+  } else {
+    const night = document.createElementNS(svgNS, 'text');
+    night.setAttribute('x', 500); night.setAttribute('y', -22);
+    night.setAttribute('text-anchor', 'middle');
+    night.setAttribute('class', 'sun-night');
+    const nextRise = now < rise ? rise : sunTimes(new Date(now.getTime() + 24 * 3600e3)).rise;
+    night.textContent = `Sonne unter dem Horizont · Aufgang ${fmtTime.format(nextRise)} Uhr`;
+    layer.appendChild(night);
+  }
+}
+
+/* ── AMTLICHE WARNUNGEN (DWD via Bright Sky) ────────────────── */
+
+const SEVERITY_ORDER = { extreme: 0, severe: 1, moderate: 2, minor: 3 };
+
+async function loadAlerts() {
+  try {
+    const d = await fetchJson(`https://api.brightsky.dev/alerts?lat=${WIND_POS.lat}&lon=${WIND_POS.lon}`);
+    const now = Date.now();
+    state.alerts = (d.alerts || [])
+      .filter((a) => (!a.expires || new Date(a.expires).getTime() > now)
+        && (!a.onset || new Date(a.onset).getTime() < now + 24 * 3600e3))
+      .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
+  } catch (e) {
+    console.warn('Warnungen nicht abrufbar:', e);
+  }
+  renderAlerts();
+}
+
+function renderAlerts() {
+  const wrap = $('#alerts');
+  wrap.replaceChildren();
+  wrap.hidden = !state.alerts.length;
+  for (const a of state.alerts) {
+    const sev = ['severe', 'extreme'].includes(a.severity) ? 'severe'
+      : a.severity === 'moderate' ? 'moderate' : 'minor';
+    const card = document.createElement('details');
+    card.className = `alert-card is-${sev}`;
+    const head = document.createElement('summary');
+    const icon = document.createElement('span');
+    icon.className = 'alert-icon';
+    icon.textContent = '⚠';
+    icon.setAttribute('aria-hidden', 'true');
+    const headline = document.createElement('span');
+    headline.className = 'alert-headline';
+    headline.textContent = a.headline_de || a.event_de || 'Amtliche Warnung';
+    const time = document.createElement('span');
+    time.className = 'alert-time';
+    const onset = a.onset ? new Date(a.onset) : null;
+    const expires = a.expires ? new Date(a.expires) : null;
+    time.textContent = onset && expires
+      ? `${fmtDayTime.format(onset)} – ${fmtDayTime.format(expires)} Uhr`
+      : '';
+    head.append(icon, headline, time);
+    card.appendChild(head);
+    const body = document.createElement('p');
+    body.className = 'alert-body';
+    body.textContent = [a.description_de, a.instruction_de].filter(Boolean).join(' ');
+    card.appendChild(body);
+    wrap.appendChild(card);
+  }
+}
+
+/* ── OSTSEE VOR SCHLEIMÜNDE (Open-Meteo Marine, Modellwerte) ── */
+
+async function loadMarine() {
+  try {
+    const d = await fetchJson('https://marine-api.open-meteo.com/v1/marine?latitude=54.69&longitude=10.10&hourly=sea_surface_temperature,wave_height&forecast_days=2&timezone=UTC');
+    const h = d.hourly;
+    const now = Date.now();
+    let bi = 0;
+    h.time.forEach((t, i) => {
+      if (Math.abs(new Date(`${t}:00Z`).getTime() - now) < Math.abs(new Date(`${h.time[bi]}:00Z`).getTime() - now)) bi = i;
+    });
+    if (h.sea_surface_temperature[bi] == null) throw new Error('keine Daten');
+    state.marine = {
+      sst: h.sea_surface_temperature[bi],
+      wave: h.wave_height[bi],
+      t: new Date(`${h.time[bi]}:00Z`),
+    };
+  } catch (e) {
+    console.warn('Marine-Daten nicht verfügbar:', e);
+    state.marine = null;
+  }
+}
+
+/* ── BADESTELLEN (Open Data SH, per Actions-Cron als badewasser.json) ── */
+
+async function loadBadewasser() {
+  try {
+    state.badewasser = await fetchJson('badewasser.json');
+  } catch {
+    state.badewasser = null;                     // Datei fehlt lokal? Kein Problem.
+  }
+  renderBadestellen();
+}
+
+function renderBadestellen() {
+  const bw = state.badewasser;
+  if (!map || !bw?.spots) return;
+  for (const s of bw.spots) {
+    const ok = (s.ecoli == null || s.ecoli <= 500) && (s.entero == null || s.entero <= 200);
+    const marker = L.circleMarker([s.lat, s.lon], {
+      radius: 5.5, color: '#ffffff', weight: 1.5,
+      fillColor: ok ? '#0ca30c' : '#fab219', fillOpacity: 0.9,
+    }).addTo(map);
+    marker.bindPopup(() => {
+      const div = document.createElement('div');
+      const name = document.createElement('p');
+      name.className = 'map-popup-name';
+      name.textContent = s.name;
+      div.appendChild(name);
+      const val = document.createElement('p');
+      val.className = 'map-popup-val';
+      val.textContent = s.datum
+        ? `Probe ${new Date(s.datum).toLocaleDateString('de-DE')}: E. coli ${s.ecoli ?? '–'}, Enterokokken ${s.entero ?? '–'} (je KBE/100 ml)${s.wasserTemp != null ? ` · Wasser ${fmtCm.format(s.wasserTemp)} °C` : ''}`
+        : 'Noch keine Probe in dieser Saison';
+      div.appendChild(val);
+      const st = document.createElement('p');
+      st.textContent = ok ? '✓ Werte unauffällig' : '△ Werte erhöht';
+      st.style.fontWeight = '600';
+      div.appendChild(st);
+      return div;
+    });
+  }
+  const note = $('#badewasser-note');
+  if (note) {
+    const newest = bw.spots.map((s) => s.datum).filter(Boolean).sort().pop();
+    note.textContent = `Badestellen an der Schlei (grün = Werte unauffällig, gelb = erhöht) — amtliche Proben des Landes Schleswig-Holstein, zuletzt vom ${new Date(newest).toLocaleDateString('de-DE')}.`;
+  }
 }
 
 /* ── WIND ───────────────────────────────────────────────────── */
@@ -201,6 +437,26 @@ async function loadWindHistory() {
   return false;
 }
 
+/* Windvorhersage +48 h (Open-Meteo, ICON-Modell, m/s direkt) */
+async function loadWindForecast() {
+  try {
+    const d = await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${WIND_POS.lat}&longitude=${WIND_POS.lon}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&forecast_days=4&timezone=UTC`);
+    const h = d.hourly;
+    const now = Date.now();
+    state.windForecast = h.time
+      .map((t, i) => {
+        const ms = h.wind_speed_10m[i], dir = h.wind_direction_10m[i];
+        if (ms == null || dir == null) return null;
+        return { t: new Date(`${t}:00Z`), ms, dir, k: ms * Math.sin((dir * Math.PI) / 180) };
+      })
+      .filter(Boolean)
+      .filter((r) => r.t.getTime() > now - 3600e3 && r.t.getTime() <= now + 48.5 * 3600e3);
+  } catch (e) {
+    console.warn('Windvorhersage nicht verfügbar:', e);
+    state.windForecast = null;
+  }
+}
+
 function compassSvg(dir) {
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNS, 'svg');
@@ -261,7 +517,7 @@ function renderWindTile() {
   const nameBox = document.createElement('div');
   const name = document.createElement('h3');
   name.className = 'tile-name';
-  name.textContent = 'Wind über der Schlei';
+  name.textContent = 'Wind';
   const sub = document.createElement('p');
   sub.className = 'tile-sub';
   sub.textContent = w
@@ -327,6 +583,55 @@ function renderWindTile() {
   src.textContent = 'Quelle: DWD via Bright Sky';
   const ts = document.createElement('span');
   ts.textContent = w ? `Messung ${fmtTime.format(w.timestamp)} Uhr` : '';
+  foot.append(src, ts);
+  tile.appendChild(foot);
+
+  return tile;
+}
+
+function renderMarineTile() {
+  const mr = state.marine;
+  const tile = document.createElement('article');
+  tile.className = 'tile';
+  tile.style.setProperty('--tile-color', 'var(--w-ost)');
+
+  const top = document.createElement('div');
+  top.className = 'tile-top';
+  const nameBox = document.createElement('div');
+  const name = document.createElement('h3');
+  name.className = 'tile-name';
+  name.textContent = 'Ostsee vor Schleimünde';
+  const sub = document.createElement('p');
+  sub.className = 'tile-sub';
+  sub.textContent = 'Modellwert offene See · Open-Meteo';
+  nameBox.append(name, sub);
+  top.appendChild(nameBox);
+  tile.appendChild(top);
+
+  const valueRow = document.createElement('div');
+  valueRow.className = 'tile-value-row';
+  const val = document.createElement('span');
+  val.className = 'tile-value';
+  val.textContent = fmtWind.format(mr.sst);
+  const unit = document.createElement('span');
+  unit.className = 'tile-unit';
+  unit.textContent = '°C Wasser';
+  valueRow.append(val, unit);
+  tile.appendChild(valueRow);
+
+  const meta = document.createElement('div');
+  meta.className = 'tile-meta';
+  const wave = document.createElement('span');
+  wave.textContent = `〰 Wellenhöhe ${fmtWind.format(mr.wave)} m`;
+  meta.appendChild(wave);
+  tile.appendChild(meta);
+
+  const foot = document.createElement('div');
+  foot.className = 'tile-foot';
+  const src = document.createElement('span');
+  src.textContent = 'Gemessene Werte: Badestellen-Karte';
+  const ts = document.createElement('span');
+  ts.textContent = `Stand ${fmtTime.format(mr.t)} Uhr`;
   foot.append(src, ts);
   tile.appendChild(foot);
 
@@ -640,6 +945,7 @@ function renderTiles() {
   }
 
   wrap.appendChild(renderWindTile());
+  if (state.marine) wrap.appendChild(renderMarineTile());
 }
 
 /* ── CHART ──────────────────────────────────────────────────── */
@@ -736,6 +1042,13 @@ function renderChart() {
       if (tt > tMax) tMax = tt;
     }
   }
+  // Ausblick: Zeitachse um die Vorhersage-Spanne verlängern (Pegel enden am Jetzt)
+  const dataEnd = tMax;
+  if (state.showForecast && state.windForecast?.length) {
+    const fcEnd = state.windForecast[state.windForecast.length - 1].t.getTime();
+    tMax = Math.max(tMax, Math.min(fcEnd, Date.now() + 48 * 3600e3));
+  }
+
   const mwVals = STATIONS.map((st) => st.charVals.MW);
   vMin = Math.min(vMin, ...mwVals) - 8;
   vMax = Math.max(vMax, ...mwVals) + 8;
@@ -859,6 +1172,27 @@ function renderChart() {
     svg.appendChild(lbl);
   }
 
+  // Zukunftsbereich: dezente Schattierung + "Jetzt"-Linie
+  if (tMax > dataEnd) {
+    const shade = document.createElementNS(svgNS, 'rect');
+    shade.setAttribute('x', x(dataEnd));
+    shade.setAttribute('y', m.top);
+    shade.setAttribute('width', Math.max(0, m.left + pw - x(dataEnd)));
+    shade.setAttribute('height', ph);
+    shade.setAttribute('class', 'future-shade');
+    svg.insertBefore(shade, svg.firstChild.nextSibling);   // hinter alles außer <desc>
+    const nowLine = document.createElementNS(svgNS, 'line');
+    nowLine.setAttribute('x1', x(dataEnd)); nowLine.setAttribute('x2', x(dataEnd));
+    nowLine.setAttribute('y1', m.top - 4); nowLine.setAttribute('y2', m.top + ph);
+    nowLine.setAttribute('class', 'now-line');
+    svg.appendChild(nowLine);
+    const nowLbl = document.createElementNS(svgNS, 'text');
+    nowLbl.setAttribute('x', x(dataEnd) + 5); nowLbl.setAttribute('y', m.top + 6);
+    nowLbl.setAttribute('class', 'now-label');
+    nowLbl.textContent = 'Jetzt';
+    svg.appendChild(nowLbl);
+  }
+
   // Hover-Ebene
   const hoverG = document.createElementNS(svgNS, 'g');
   hoverG.setAttribute('id', 'hover-layer');
@@ -872,7 +1206,7 @@ function renderChart() {
   svg.appendChild(hit);
 
   chart.data = sliced;
-  chart.geom = { m, pw, ph, W, H, x, y, tMin, tMax };
+  chart.geom = { m, pw, ph, W, H, x, y, tMin, tMax, dataEnd };
 
   renderWindPanel();
   bindChartHover();
@@ -886,8 +1220,11 @@ function renderWindPanel() {
   const hist = state.windHistory;
   if (!hist || !chart.geom) { panel.hidden = true; chart.windGeom = null; return; }
 
-  const { m, pw, tMin, tMax, W, x } = chart.geom;
-  const slice = hist.filter((r) => r.t.getTime() >= tMin && r.t.getTime() <= tMax);
+  const { m, pw, tMin, tMax, W, x, dataEnd } = chart.geom;
+  const slice = hist.filter((r) => r.t.getTime() >= tMin && r.t.getTime() <= dataEnd);
+  const fc = (state.showForecast && state.windForecast)
+    ? state.windForecast.filter((r) => r.t.getTime() > dataEnd && r.t.getTime() <= tMax)
+    : [];
   if (slice.length < 2) { panel.hidden = true; chart.windGeom = null; return; }
   panel.hidden = false;
 
@@ -898,7 +1235,7 @@ function renderWindPanel() {
   const ph = H - mm.top - mm.bottom;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
-  const kMax = Math.max(4, Math.ceil(Math.max(...slice.map((r) => Math.abs(r.k)))));
+  const kMax = Math.max(4, Math.ceil(Math.max(...slice.concat(fc).map((r) => Math.abs(r.k)))));
   const y = (k) => mm.top + ph / 2 - (k / kMax) * (ph / 2);
 
   // Hilfslinien ± halbe Skala + Nulllinie
@@ -942,28 +1279,43 @@ function renderWindPanel() {
   }
   svg.appendChild(defs);
 
-  const linePath = slice.map((r, i) => `${i ? 'L' : 'M'}${x(r.t.getTime()).toFixed(1)},${y(r.k).toFixed(1)}`).join('');
-  const areaPath = `${linePath}L${x(slice[slice.length - 1].t.getTime()).toFixed(1)},${y0}L${x(slice[0].t.getTime()).toFixed(1)},${y0}Z`;
+  const drawSeries = (data, extraCls) => {
+    if (data.length < 2) return;
+    const linePath = data.map((r, i) => `${i ? 'L' : 'M'}${x(r.t.getTime()).toFixed(1)},${y(r.k).toFixed(1)}`).join('');
+    const areaPath = `${linePath}L${x(data[data.length - 1].t.getTime()).toFixed(1)},${y0}L${x(data[0].t.getTime()).toFixed(1)},${y0}Z`;
+    for (const [cls, clip] of [['wind-area-ost', 'wclip-ost'], ['wind-area-west', 'wclip-west']]) {
+      const p = document.createElementNS(svgNS, 'path');
+      p.setAttribute('d', areaPath);
+      p.setAttribute('class', `${cls}${extraCls}`);
+      p.setAttribute('clip-path', `url(#${clip})`);
+      svg.appendChild(p);
+    }
+    for (const [cls, clip] of [['wind-line-ost', 'wclip-ost'], ['wind-line-west', 'wclip-west']]) {
+      const p = document.createElementNS(svgNS, 'path');
+      p.setAttribute('d', linePath);
+      p.setAttribute('class', `${cls}${extraCls}`);
+      p.setAttribute('clip-path', `url(#${clip})`);
+      svg.appendChild(p);
+    }
+  };
+  drawSeries(slice, '');
+  // Vorhersage nahtlos an der letzten Messung ansetzen
+  drawSeries(fc.length ? [slice[slice.length - 1], ...fc] : [], ' is-forecast');
 
-  for (const [cls, clip] of [['wind-area-ost', 'wclip-ost'], ['wind-area-west', 'wclip-west']]) {
-    const p = document.createElementNS(svgNS, 'path');
-    p.setAttribute('d', areaPath);
-    p.setAttribute('class', cls);
-    p.setAttribute('clip-path', `url(#${clip})`);
-    svg.appendChild(p);
-  }
-  for (const [cls, clip] of [['wind-line-ost', 'wclip-ost'], ['wind-line-west', 'wclip-west']]) {
-    const p = document.createElementNS(svgNS, 'path');
-    p.setAttribute('d', linePath);
-    p.setAttribute('class', cls);
-    p.setAttribute('clip-path', `url(#${clip})`);
-    svg.appendChild(p);
+  // "Jetzt"-Grenze auch im Wind-Panel
+  if (fc.length) {
+    const nowLine = document.createElementNS(svgNS, 'line');
+    nowLine.setAttribute('x1', x(dataEnd)); nowLine.setAttribute('x2', x(dataEnd));
+    nowLine.setAttribute('y1', mm.top); nowLine.setAttribute('y2', H - mm.bottom);
+    nowLine.setAttribute('class', 'now-line');
+    svg.appendChild(nowLine);
   }
 
-  // Richtungspfeile (Strömungsrichtung) als Band über dem Panel
-  const step = Math.max(1, Math.ceil(slice.length / 26));
-  for (let i = 0; i < slice.length; i += step) {
-    const r = slice[i];
+  // Richtungspfeile (Strömungsrichtung) als Band über dem Panel — Messung + Vorhersage
+  const arrowData = slice.concat(fc);
+  const step = Math.max(1, Math.ceil(arrowData.length / 26));
+  for (let i = 0; i < arrowData.length; i += step) {
+    const r = arrowData[i];
     const g = document.createElementNS(svgNS, 'g');
     g.setAttribute('transform', `translate(${x(r.t.getTime()).toFixed(1)} 13) rotate(${(r.dir + 180) % 360})`);
     const glyph = document.createElementNS(svgNS, 'path');
@@ -993,7 +1345,7 @@ function renderWindPanel() {
   hit.setAttribute('id', 'wind-hit');
   svg.appendChild(hit);
 
-  chart.windGeom = { y, mm, H, ph, slice };
+  chart.windGeom = { y, mm, H, ph, slice: slice.concat(fc.map((r) => ({ ...r, fc: true }))) };
 }
 
 function bindChartHover() {
@@ -1014,8 +1366,10 @@ function bindChartHover() {
     windHoverG?.replaceChildren();
     const rows = [];
     let anchorX = null;
+    // Im Vorhersagebereich gibt es keine Pegelwerte — nur Wind anzeigen
+    const future = tt > chart.geom.dataEnd + 15 * 60e3;
 
-    for (const s of chart.data) {
+    for (const s of future ? [] : chart.data) {
       // nächsten Punkt suchen (binär)
       let lo = 0, hi = s.data.length - 1;
       while (hi - lo > 1) {
@@ -1032,28 +1386,16 @@ function bindChartHover() {
       hoverG.appendChild(dot);
       rows.push({ name: `Pegel ${s.st.name}`, value: `${fmtCm.format(p.v)} cm`, color, t: p.t });
     }
-    if (anchorX == null) return;
 
-    const cross = document.createElementNS(svgNS, 'line');
-    cross.setAttribute('x1', anchorX); cross.setAttribute('x2', anchorX);
-    cross.setAttribute('y1', m.top); cross.setAttribute('y2', m.top + ph);
-    cross.setAttribute('class', 'crosshair');
-    hoverG.prepend(cross);
-
-    // Wind-Panel: Crosshair verlängern + nächste Stundenmessung anzeigen
+    // Wind: nächste Stundenmessung/-vorhersage suchen (setzt im Zukunftsbereich den Anker)
     if (chart.windGeom && windHoverG) {
       const wg = chart.windGeom;
-      const wcross = document.createElementNS(svgNS, 'line');
-      wcross.setAttribute('x1', anchorX); wcross.setAttribute('x2', anchorX);
-      wcross.setAttribute('y1', wg.mm.top); wcross.setAttribute('y2', wg.H - wg.mm.bottom);
-      wcross.setAttribute('class', 'crosshair');
-      windHoverG.appendChild(wcross);
-
       let best = null;
       for (const r of wg.slice) {
         if (!best || Math.abs(r.t.getTime() - tt) < Math.abs(best.t.getTime() - tt)) best = r;
       }
       if (best && Math.abs(best.t.getTime() - tt) <= 90 * 60e3) {
+        if (anchorX == null) anchorX = x(best.t.getTime());
         const dot = document.createElementNS(svgNS, 'circle');
         dot.setAttribute('cx', x(best.t.getTime())); dot.setAttribute('cy', wg.y(best.k));
         dot.setAttribute('r', 4.5);
@@ -1061,18 +1403,36 @@ function bindChartHover() {
         dot.setAttribute('class', 'hover-dot');
         windHoverG.appendChild(dot);
         rows.push({
-          name: 'Wind',
+          name: best.fc ? 'Wind (Vorhersage)' : 'Wind',
           value: `${fmtWind.format(best.ms)} m/s aus ${compassPoint(best.dir)}`,
           color: cssVar(best.k >= 0 ? '--w-ost' : '--w-west'),
+          t: rows.length ? undefined : best.t,
         });
       }
+    }
+    if (anchorX == null || !rows.length) return;
+
+    const cross = document.createElementNS(svgNS, 'line');
+    cross.setAttribute('x1', anchorX); cross.setAttribute('x2', anchorX);
+    cross.setAttribute('y1', m.top); cross.setAttribute('y2', m.top + ph);
+    cross.setAttribute('class', 'crosshair');
+    hoverG.prepend(cross);
+
+    if (chart.windGeom && windHoverG) {
+      const wg = chart.windGeom;
+      const wcross = document.createElementNS(svgNS, 'line');
+      wcross.setAttribute('x1', anchorX); wcross.setAttribute('x2', anchorX);
+      wcross.setAttribute('y1', wg.mm.top); wcross.setAttribute('y2', wg.H - wg.mm.bottom);
+      wcross.setAttribute('class', 'crosshair');
+      windHoverG.appendChild(wcross);
     }
 
     // Tooltip füllen (textContent — Namen sind Fremddaten)
     tooltip.replaceChildren();
     const time = document.createElement('p');
     time.className = 'tt-time';
-    time.textContent = `${fmtDayTime.format(rows[0].t)} Uhr`;
+    const timeRow = rows.find((r) => r.t);
+    time.textContent = timeRow ? `${fmtDayTime.format(timeRow.t)} Uhr` : '';
     tooltip.appendChild(time);
     for (const r of rows) {
       const row = document.createElement('div');
@@ -1322,6 +1682,12 @@ function bindControls() {
     renderChart();
   });
 
+  $('#forecast-toggle').addEventListener('click', () => {
+    state.showForecast = !state.showForecast;
+    $('#forecast-toggle').setAttribute('aria-pressed', String(state.showForecast));
+    renderChart();
+  });
+
   $('#table-toggle').addEventListener('click', () => {
     state.tableView = !state.tableView;
     $('#table-toggle').setAttribute('aria-pressed', String(state.tableView));
@@ -1471,12 +1837,17 @@ async function init() {
   }
 
   renderFjord();
+  renderSunLayer();
   renderFjordGauges();
   renderTiles();
   renderLegend();
   renderMap();
   bindControls();
   loadWikipedia();
+  loadAlerts();
+  loadBadewasser();
+  loadMarine().then(renderTiles);
+  setInterval(renderSunLayer, 60e3);
 
   // Stufe 1: aktuelle Werte + Wind + 2 Tage für schnellen ersten Chart
   const [, okShort] = await Promise.all([
@@ -1484,6 +1855,7 @@ async function init() {
     loadMeasurements(2),
     loadWind().then(() => { renderTiles(); setupWindAnimation(); }),
     loadWindHistory(),
+    loadWindForecast(),
   ]);
   for (const st of STATIONS) {
     const cur = state.current[st.id];
@@ -1516,10 +1888,13 @@ async function init() {
   setInterval(async () => {
     if (document.hidden) return;
     loadCurrent();
+    loadAlerts();
     const jobs = [refreshMeasurements(), loadWind()];
-    // Windhistorie ist stündlich — nur nachladen, wenn sie veraltet ist
+    // Windhistorie/-vorhersage und Marine sind stündlich — nur nachladen, wenn veraltet
     const lastWind = state.windHistory?.[state.windHistory.length - 1]?.t.getTime() ?? 0;
-    if (Date.now() - lastWind > 65 * 60e3) jobs.push(loadWindHistory());
+    if (Date.now() - lastWind > 65 * 60e3) {
+      jobs.push(loadWindHistory(), loadWindForecast(), loadMarine());
+    }
     await Promise.all(jobs);
     renderChart();
     renderTiles();

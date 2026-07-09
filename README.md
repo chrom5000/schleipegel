@@ -7,7 +7,11 @@ eine statische Website ohne Build-Schritt.
 
 - Aktuelle Messwerte im Minutentakt mit Zustandseinstufung (MNW/MW/MHW), Tendenz und Höhe in m NHN
 - Verlaufs-Chart der letzten 31 Tage (24 h bis 31 Tage, per `?range=7` verlinkbar) mit Crosshair-Tooltip, Referenzbändern und Tabellenansicht
-- Hero mit der echten Schlei-Wasserfläche aus OpenStreetMap und live annotierten Pegelwerten
+- Wind-Pegel-Korrelation: Ost-West-Windkomponente (DWD Schleswig) zeitgleich unter dem Pegel-Chart, plus **Ausblick +48 h** (Open-Meteo/ICON) mit Jetzt-Linie
+- Hero mit der echten Schlei-Wasserfläche aus OpenStreetMap, live annotierten Pegelwerten, **animiertem Wind** (Richtung/Stärke der DWD-Messung) und **Sonnenbogen** (Auf-/Untergang, Live-Sonnenstand, clientseitig berechnet)
+- Amtliche DWD-Warnungen (Sturmflut/Unwetter) als Banner, nur bei aktiver Warnung sichtbar
+- Wind-Kachel (Kompassrose, Beaufort), Ostsee-Kachel (Wassertemperatur/Wellenhöhe vor Schleimünde)
+- Badewasserqualität aller Schlei-Badestellen auf der Karte (Open Data SH, täglich per GitHub-Actions-Cron aktualisiert)
 - Leaflet-Karte (OSM) und Wikipedia-Kurzporträt der Schlei
 - Hell-/Dunkelmodus nach Systemeinstellung, responsiv, `prefers-reduced-motion` wird respektiert
 

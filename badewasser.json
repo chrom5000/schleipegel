@@ -1,0 +1,215 @@
+{
+ "updated": "2026-07-09T13:22:53+00:00",
+ "quelle": "Land Schleswig-Holstein, Badegewässer-Daten (dl-de/by-2-0)",
+ "spots": [
+  {
+   "id": "DESH_PR_0178",
+   "name": "Gemeindebadestelle Götheby an der Schlei",
+   "lat": 54.494145,
+   "lon": 9.711103,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-16",
+   "ecoli": 65.0,
+   "entero": 10.0,
+   "wasserTemp": 14.0
+  },
+  {
+   "id": "DESH_PR_0179",
+   "name": "Badestelle Weseby an der Schlei",
+   "lat": 54.505909,
+   "lon": 9.711421,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-16",
+   "ecoli": 10.0,
+   "entero": 10.0,
+   "wasserTemp": 14.0
+  },
+  {
+   "id": "DESH_PR_0180",
+   "name": "Campingplatz Wees in Missunde",
+   "lat": 54.52605,
+   "lon": 9.725629,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-16",
+   "ecoli": 10.0,
+   "entero": 43.0,
+   "wasserTemp": 17.0
+  },
+  {
+   "id": "DESH_PR_0181",
+   "name": "Marina Hülsen an der Schlei",
+   "lat": 54.5481,
+   "lon": 9.750292,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-16",
+   "ecoli": 87.0,
+   "entero": 10.0,
+   "wasserTemp": 16.0
+  },
+  {
+   "id": "DESH_PR_0248",
+   "name": "Jugendzeltlager Weseby",
+   "lat": 54.498713,
+   "lon": 9.71411,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-16",
+   "ecoli": 65.0,
+   "entero": 10.0,
+   "wasserTemp": 14.0
+  },
+  {
+   "id": "DESH_PR_0259",
+   "name": "Schlei, Arnis",
+   "lat": 54.629107,
+   "lon": 9.928071,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 32.0,
+   "entero": 21.0,
+   "wasserTemp": 17.0
+  },
+  {
+   "id": "DESH_PR_0260",
+   "name": "Schlei, Lindaunis",
+   "lat": 54.593982,
+   "lon": 9.829714,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 10.0,
+   "entero": 10.0,
+   "wasserTemp": 17.0
+  },
+  {
+   "id": "DESH_PR_0261",
+   "name": "Schlei, Lindaukamp",
+   "lat": 54.581811,
+   "lon": 9.813346,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 21.0,
+   "entero": 21.0,
+   "wasserTemp": 17.0
+  },
+  {
+   "id": "DESH_PR_0262",
+   "name": "Schlei, Hagab",
+   "lat": 54.571105,
+   "lon": 9.765498,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 10.0,
+   "entero": 10.0,
+   "wasserTemp": 17.0
+  },
+  {
+   "id": "DESH_PR_0263",
+   "name": "Schlei, Hellör",
+   "lat": 54.535709,
+   "lon": 9.736444,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2025-09-02",
+   "ecoli": 32.0,
+   "entero": 10.0,
+   "wasserTemp": 18.0
+  },
+  {
+   "id": "DESH_PR_0264",
+   "name": "Schlei, Brodersby",
+   "lat": 54.527264,
+   "lon": 9.701518,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2025-09-02",
+   "ecoli": 21.0,
+   "entero": 10.0,
+   "wasserTemp": 18.0
+  },
+  {
+   "id": "DESH_PR_0265",
+   "name": "Schlei, Winningmay",
+   "lat": 54.529967,
+   "lon": 9.632672,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2025-09-02",
+   "ecoli": 87.0,
+   "entero": 65.0,
+   "wasserTemp": 18.0
+  },
+  {
+   "id": "DESH_PR_0266",
+   "name": "Schlei, Schleswig Luisenbad",
+   "lat": 54.512632,
+   "lon": 9.559904,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 208.0,
+   "entero": 21.0,
+   "wasserTemp": 15.0
+  },
+  {
+   "id": "DESH_PR_0267",
+   "name": "Schlei, Fahrdorf",
+   "lat": 54.508038,
+   "lon": 9.601451,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 221.0,
+   "entero": 110.0,
+   "wasserTemp": 15.0
+  },
+  {
+   "id": "DESH_PR_0268",
+   "name": "Schlei, Borgwedel",
+   "lat": 54.49927,
+   "lon": 9.673472,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 21.0,
+   "entero": 87.0,
+   "wasserTemp": 15.0
+  },
+  {
+   "id": "DESH_PR_0269",
+   "name": "Schlei, Selker Noor",
+   "lat": 54.483778,
+   "lon": 9.584138,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 98.0,
+   "entero": 32.0,
+   "wasserTemp": 16.0
+  },
+  {
+   "id": "DESH_PR_0270",
+   "name": "Schlei, Niederselk",
+   "lat": 54.480709,
+   "lon": 9.583964,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 43.0,
+   "entero": 10.0,
+   "wasserTemp": 15.0
+  },
+  {
+   "id": "DESH_PR_0284",
+   "name": "Schlei, Stexwig",
+   "lat": 54.512038,
+   "lon": 9.64188,
+   "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
+   "datum": "2026-06-15",
+   "ecoli": 360.0,
+   "entero": 10.0,
+   "wasserTemp": 15.0
+  },
+  {
+   "id": "DESH_PR_0349",
+   "name": "Schlei, Schleswig, Auf der Freiheit",
+   "lat": 54.51195,
+   "lon": 9.588478,
+   "hinweis": "Unter normalen Wetter- und Umgebungsbedingungen sind keine Auswirkungen auf die Badegewässerqualität bekannt",
+   "datum": "2026-06-16",
+   "ecoli": 53.0,
+   "entero": 32.0,
+   "wasserTemp": 16.0
+  }
+ ]
+}

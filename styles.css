@@ -253,6 +253,37 @@ a { color: inherit; }
   text-transform: uppercase;
 }
 
+/* Sonnenbogen: Aufgang rechts (Ost, kartentreu), Untergang links, Höhe = Sonnenhöhe */
+.sun-arc {
+  fill: none;
+  stroke: #ffd97a;
+  stroke-width: 1.6;
+  stroke-dasharray: 1 7;
+  stroke-linecap: round;
+  opacity: .65;
+}
+
+.sun-disc { fill: #ffe49d; }
+.sun-glow { fill: #ffd97a; opacity: .16; }
+
+.sun-time {
+  font-family: var(--font-viz);
+  font-size: 14px;
+  font-weight: 550;
+  fill: #d9c491;
+  paint-order: stroke;
+  stroke: var(--hero-deep);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.sun-night {
+  font-family: var(--font-viz);
+  font-size: 15px;
+  font-style: italic;
+  fill: #8fa8b4;
+}
+
 .fjord-caption {
   padding: 10px 0 22px;
   font-size: 12px;
@@ -292,11 +323,47 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
   max-width: 62ch;
 }
 
+/* ══════════════ WARNBANNER ══════════════ */
+
+.alerts { padding-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+
+.alert-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 4px solid var(--st-warn);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 12px 18px;
+}
+
+.alert-card.is-moderate { border-left-color: var(--st-serious); }
+.alert-card.is-severe { border-left-color: var(--st-critical); }
+
+.alert-card summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  flex-wrap: wrap;
+}
+
+.alert-card summary::-webkit-details-marker { display: none; }
+
+.alert-icon { color: var(--st-critical); font-size: 15px; }
+.alert-card.is-minor .alert-icon { color: var(--st-warn); }
+.alert-card.is-moderate .alert-icon { color: var(--st-serious); }
+
+.alert-headline { font-weight: 650; }
+.alert-time { font-size: 13px; color: var(--ink-3); margin-left: auto; }
+
+.alert-body { margin-top: 8px; font-size: 14px; color: var(--ink-2); max-width: 90ch; }
+
 /* ══════════════ STAT-KACHELN ══════════════ */
 
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 16px;
 }
 
@@ -410,8 +477,8 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 }
 
 .compass {
-  width: 108px;
-  height: 108px;
+  width: 96px;
+  height: 96px;
   flex: none;
 }
 
@@ -647,6 +714,16 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .wind-line-west { fill: none; stroke: var(--w-west); stroke-width: 1.5; }
 .wind-arrow { stroke: var(--ink-3); stroke-width: 1.4; fill: none; stroke-linecap: round; }
 .wind-side-label { fill: var(--ink-3); font-size: 10.5px; font-weight: 600; letter-spacing: .05em; }
+
+/* Jetzt-Linie + Vorhersagebereich */
+.now-line { stroke: var(--ink-3); stroke-width: 1.2; }
+.now-label { fill: var(--ink-3); font-size: 11px; font-weight: 650; letter-spacing: .04em; }
+.future-shade { fill: var(--ink-3); opacity: .05; }
+
+.is-forecast.wind-area-ost, .is-forecast.wind-area-west { opacity: .24; }
+.is-forecast.wind-line-ost, .is-forecast.wind-line-west { stroke-dasharray: 3 3.5; opacity: .8; }
+
+.filter-right { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .chart-explainer {
   margin-top: 14px;
