@@ -45,6 +45,10 @@ const SCHLEIMUENDE = {
   svg: [993, 81],
 };
 
+/* Wind: DWD-Beobachtungen über die Bright-Sky-API (CORS offen, ohne Schlüssel).
+   Punkt mittig über der Schlei — Bright Sky wählt die nächste DWD-Station. */
+const WIND_POS = { lat: 54.6, lon: 9.8 };
+
 const state = {
   rangeDays: 1,
   tableView: false,
@@ -53,6 +57,7 @@ const state = {
   seriesDays: 0,                                 // wie viele Tage bereits geladen sind
   current: { schleswig: null, kappeln: null },
   schleimuende: null,   // Livewert, falls die Station wieder sendet
+  wind: null,           // aktuelle DWD-Windmessung
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -60,6 +65,7 @@ const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyV
 
 const fmtCm = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
 const fmtM = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtWind = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmtTime = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
 const fmtDayTime = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const fmtDay = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
@@ -109,6 +115,177 @@ function estimateTrend(series) {
   if (older.length < 2) return 0;
   const diff = last.v - older[0].v;
   return Math.abs(diff) < 2 ? 0 : Math.sign(diff);
+}
+
+/* ── WIND ───────────────────────────────────────────────────── */
+
+const BFT_LIMITS = [0.3, 1.6, 3.4, 5.5, 8.0, 10.8, 13.9, 17.2, 20.8, 24.5, 28.5, 32.7];
+const BFT_NAMES = ['Windstille', 'leiser Zug', 'leichte Brise', 'schwache Brise',
+  'mäßige Brise', 'frische Brise', 'starker Wind', 'steifer Wind',
+  'stürmischer Wind', 'Sturm', 'schwerer Sturm', 'orkanartiger Sturm', 'Orkan'];
+
+function beaufort(ms) {
+  const bft = BFT_LIMITS.findIndex((lim) => ms < lim);
+  return bft === -1 ? 12 : bft;
+}
+
+const COMPASS_POINTS = ['N', 'NNO', 'NO', 'ONO', 'O', 'OSO', 'SO', 'SSO',
+  'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+
+function compassPoint(deg) {
+  return COMPASS_POINTS[Math.round(deg / 22.5) % 16];
+}
+
+async function loadWind() {
+  try {
+    const data = await fetchJson(`https://api.brightsky.dev/current_weather?lat=${WIND_POS.lat}&lon=${WIND_POS.lon}`);
+    const w = data.weather;
+    if (w?.wind_speed_10 == null || w?.wind_direction_10 == null) throw new Error('keine Winddaten');
+    const src = (data.sources || []).find((s) => s.station_name) || {};
+    state.wind = {
+      speedMs: w.wind_speed_10 / 3.6,                                  // km/h → m/s
+      gustMs: w.wind_gust_speed_10 != null ? w.wind_gust_speed_10 / 3.6 : null,
+      dir: w.wind_direction_10,
+      timestamp: new Date(w.timestamp),
+      station: src.station_name || 'DWD-Station',
+      distanceKm: src.distance != null ? Math.round(src.distance / 1000) : null,
+    };
+  } catch (e) {
+    console.warn('Winddaten nicht verfügbar:', e);
+    state.wind = null;
+  }
+}
+
+function compassSvg(dir) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('class', 'compass');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', `Windrichtung ${Math.round(dir)} Grad, aus ${compassPoint(dir)}`);
+
+  const ring = document.createElementNS(svgNS, 'circle');
+  ring.setAttribute('cx', 50); ring.setAttribute('cy', 50); ring.setAttribute('r', 37);
+  ring.setAttribute('class', 'compass-ring');
+  svg.appendChild(ring);
+
+  for (let i = 0; i < 16; i++) {
+    const major = i % 4 === 0;
+    const a = (i * 22.5 - 90) * Math.PI / 180;
+    const r1 = 37, r2 = major ? 30 : 33.5;
+    const tick = document.createElementNS(svgNS, 'line');
+    tick.setAttribute('x1', 50 + r1 * Math.cos(a)); tick.setAttribute('y1', 50 + r1 * Math.sin(a));
+    tick.setAttribute('x2', 50 + r2 * Math.cos(a)); tick.setAttribute('y2', 50 + r2 * Math.sin(a));
+    tick.setAttribute('class', major ? 'compass-tick-major' : 'compass-tick');
+    svg.appendChild(tick);
+  }
+
+  [['N', 50, 9], ['O', 93, 53.5], ['S', 50, 97], ['W', 7, 53.5]].forEach(([txt, x, y]) => {
+    const t = document.createElementNS(svgNS, 'text');
+    t.setAttribute('x', x); t.setAttribute('y', y);
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('class', 'compass-letter');
+    t.textContent = txt;
+    svg.appendChild(t);
+  });
+
+  // Pfeil: Schaft vom Rand (Herkunftsrichtung) durchs Zentrum, Spitze = Strömungsrichtung
+  const g = document.createElementNS(svgNS, 'g');
+  g.setAttribute('transform', `rotate(${dir} 50 50)`);
+  const shaft = document.createElementNS(svgNS, 'line');
+  shaft.setAttribute('x1', 50); shaft.setAttribute('y1', 20);
+  shaft.setAttribute('x2', 50); shaft.setAttribute('y2', 72);
+  shaft.setAttribute('class', 'compass-needle');
+  const head = document.createElementNS(svgNS, 'polygon');
+  head.setAttribute('points', '44,70 56,70 50,82');
+  head.setAttribute('class', 'compass-head');
+  g.append(shaft, head);
+  svg.appendChild(g);
+
+  return svg;
+}
+
+function renderWindTile() {
+  const w = state.wind;
+  const tile = document.createElement('article');
+  tile.className = 'tile tile-wind' + (w ? '' : ' is-loading');
+  tile.style.setProperty('--tile-color', 'var(--reed)');
+
+  const top = document.createElement('div');
+  top.className = 'tile-top';
+  const nameBox = document.createElement('div');
+  const name = document.createElement('h3');
+  name.className = 'tile-name';
+  name.textContent = 'Wind über der Schlei';
+  const sub = document.createElement('p');
+  sub.className = 'tile-sub';
+  sub.textContent = w
+    ? `DWD-Station ${w.station}${w.distanceKm != null ? ` · ${w.distanceKm} km` : ''}`
+    : 'DWD-Beobachtung';
+  nameBox.append(name, sub);
+  top.appendChild(nameBox);
+
+  if (w) {
+    const bft = beaufort(w.speedMs);
+    const chip = document.createElement('span');
+    chip.className = 'tile-state';
+    chip.textContent = `${bft} Bft · ${BFT_NAMES[bft]}`;
+    top.appendChild(chip);
+  }
+  tile.appendChild(top);
+
+  const body = document.createElement('div');
+  body.className = 'wind-body';
+
+  if (w) {
+    body.appendChild(compassSvg(w.dir));
+
+    const facts = document.createElement('div');
+    facts.className = 'wind-facts';
+
+    const valueRow = document.createElement('div');
+    valueRow.className = 'tile-value-row';
+    const val = document.createElement('span');
+    val.className = 'tile-value';
+    val.textContent = fmtWind.format(w.speedMs);
+    const unit = document.createElement('span');
+    unit.className = 'tile-unit';
+    unit.textContent = 'm/s';
+    valueRow.append(val, unit);
+    facts.appendChild(valueRow);
+
+    const meta = document.createElement('div');
+    meta.className = 'wind-meta';
+    const dirLine = document.createElement('span');
+    dirLine.textContent = `aus ${compassPoint(w.dir)} (${Math.round(w.dir)}°)`;
+    const knLine = document.createElement('span');
+    knLine.textContent = `≙ ${fmtCm.format(w.speedMs * 1.9438)} kn`;
+    meta.append(dirLine, knLine);
+    if (w.gustMs != null) {
+      const gust = document.createElement('span');
+      gust.textContent = `Böen bis ${fmtCm.format(w.gustMs)} m/s`;
+      meta.appendChild(gust);
+    }
+    facts.appendChild(meta);
+    body.appendChild(facts);
+  } else {
+    const err = document.createElement('p');
+    err.className = 'tile-meta';
+    err.textContent = 'Winddaten derzeit nicht verfügbar.';
+    body.appendChild(err);
+  }
+  tile.appendChild(body);
+
+  const foot = document.createElement('div');
+  foot.className = 'tile-foot';
+  const src = document.createElement('span');
+  src.textContent = 'Quelle: DWD via Bright Sky';
+  const ts = document.createElement('span');
+  ts.textContent = w ? `Messung ${fmtTime.format(w.timestamp)} Uhr` : '';
+  foot.append(src, ts);
+  tile.appendChild(foot);
+
+  return tile;
 }
 
 /* ── HERO: Schlei-Silhouette ────────────────────────────────── */
@@ -330,6 +507,8 @@ function renderTiles() {
 
     wrap.appendChild(tile);
   }
+
+  wrap.appendChild(renderWindTile());
 }
 
 /* ── CHART ──────────────────────────────────────────────────── */
@@ -999,8 +1178,12 @@ async function init() {
   bindControls();
   loadWikipedia();
 
-  // Stufe 1: aktuelle Werte + 2 Tage für schnellen ersten Chart
-  const [, okShort] = await Promise.all([loadCurrent(), loadMeasurements(2)]);
+  // Stufe 1: aktuelle Werte + Wind + 2 Tage für schnellen ersten Chart
+  const [, okShort] = await Promise.all([
+    loadCurrent(),
+    loadMeasurements(2),
+    loadWind().then(renderTiles),
+  ]);
   for (const st of STATIONS) {
     const cur = state.current[st.id];
     if (cur && !cur.trend && state.series[st.id]) cur.trend = estimateTrend(state.series[st.id]);
@@ -1032,7 +1215,7 @@ async function init() {
   setInterval(async () => {
     if (document.hidden) return;
     loadCurrent();
-    await refreshMeasurements();
+    await Promise.all([refreshMeasurements(), loadWind()]);
     renderChart();
     renderTiles();
   }, 5 * 60e3);
