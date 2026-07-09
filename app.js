@@ -839,12 +839,7 @@ function bindControls() {
     for (const b of document.querySelectorAll('.range-btn')) {
       b.setAttribute('aria-pressed', String(b === btn));
     }
-    if (days > state.seriesDays) {
-      // 31-Tage-Daten laufen noch ein — Chart gedimmt lassen
-      $('#chart-wrap').classList.add('is-refetching');
-    } else {
-      $('#chart-wrap').classList.remove('is-refetching');
-    }
+    updateLoadingOverlay();
     renderChart();
   });
 
@@ -928,6 +923,10 @@ async function loadCurrent() {
 }
 
 async function loadMeasurements(days) {
+  // Nur für Erst-/Backfill-Ladungen: ersetzt die Reihe komplett.
+  // Nie mit weniger Tagen aufrufen als bereits geladen sind — sonst
+  // schrumpft die Historie (für Updates refreshMeasurements verwenden).
+  if (days < state.seriesDays) return true;
   const results = await Promise.allSettled(STATIONS.map((st) => fetchMeasurements(st, days)));
   let any = false;
   results.forEach((r, i) => {
@@ -945,6 +944,41 @@ async function loadMeasurements(days) {
     }
   }
   return any;
+}
+
+/* Auto-Refresh: letzte Stunde holen und an die bestehende Reihe ANHÄNGEN,
+   damit die geladene Historie erhalten bleibt. */
+async function refreshMeasurements() {
+  const results = await Promise.allSettled(STATIONS.map((st) => fetchMeasurements(st, 1)));
+  const maxAge = Date.now() - 31 * 24 * 3600e3;
+  results.forEach((r, i) => {
+    if (r.status !== 'fulfilled' || !r.value.length) return;
+    const id = STATIONS[i].id;
+    const old = state.series[id];
+    if (!old) { state.series[id] = r.value; return; }
+    const lastT = old[old.length - 1].t.getTime();
+    const fresh = r.value.filter((p) => p.t.getTime() > lastT);
+    state.series[id] = old.concat(fresh).filter((p) => p.t.getTime() >= maxAge);
+  });
+  for (const st of STATIONS) {
+    const cur = state.current[st.id];
+    if (cur && state.series[st.id]) cur.trend = estimateTrend(state.series[st.id]);
+  }
+}
+
+/* Ladehinweis, solange der gewählte Zeitraum die geladene Historie übersteigt */
+function updateLoadingOverlay() {
+  const loading = $('#chart-loading');
+  const pending = state.rangeDays > state.seriesDays;
+  loading.hidden = !pending;
+  if (pending) {
+    loading.replaceChildren();
+    const spin = document.createElement('span');
+    spin.className = 'spinner';
+    spin.setAttribute('aria-hidden', 'true');
+    loading.append(spin, ` Lade ${state.rangeDays}-Tage-Historie …`);
+  }
+  $('#chart-wrap').classList.toggle('is-refetching', pending);
 }
 
 async function init() {
@@ -971,27 +1005,40 @@ async function init() {
     const cur = state.current[st.id];
     if (cur && !cur.trend && state.series[st.id]) cur.trend = estimateTrend(state.series[st.id]);
   }
-  $('#chart-loading').hidden = okShort;
   if (okShort) {
+    updateLoadingOverlay();
     renderChart();
     renderTiles(); // jetzt mit Sparklines und Tendenz
   } else {
     $('#chart-loading').textContent = 'Messdaten konnten nicht geladen werden. Bitte später erneut versuchen.';
   }
 
-  // Stufe 2: volle 31 Tage im Hintergrund
-  loadMeasurements(31).then((ok) => {
-    if (!ok) return;
-    $('#chart-wrap').classList.remove('is-refetching');
-    renderChart();
-  });
+  // Stufe 2: volle Historie im Hintergrund — mit Wiederholung und Rückfallstufen,
+  // falls der große Abruf (2× ~2,4 MB) scheitert
+  (async () => {
+    for (const days of [31, 31, 14, 7]) {
+      if (await loadMeasurements(days)) break;
+      console.warn(`Historie: P${days}D fehlgeschlagen, nächster Versuch …`);
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+    if (state.seriesDays > 0) {
+      updateLoadingOverlay();
+      renderChart();
+    }
+  })();
 
-  // Auto-Aktualisierung alle 5 Minuten (nur bei sichtbarem Tab)
-  setInterval(() => {
+  // Auto-Aktualisierung alle 5 Minuten (nur bei sichtbarem Tab):
+  // neue Werte werden angehängt, die Historie bleibt erhalten
+  setInterval(async () => {
     if (document.hidden) return;
     loadCurrent();
-    loadMeasurements(1).then((ok) => { if (ok) renderChart(); });
+    await refreshMeasurements();
+    renderChart();
+    renderTiles();
   }, 5 * 60e3);
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Debug-/Test-Zugriff (bewusst öffentlich, enthält nur ohnehin öffentliche Messdaten)
+window.__schlei = { state, chart, refreshMeasurements, get seriesDays() { return state.seriesDays; } };
