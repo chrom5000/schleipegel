@@ -101,12 +101,30 @@
           <div class="chart-tooltip" id="chart-tooltip" hidden></div>
           <div class="chart-loading" id="chart-loading"><span class="spinner" aria-hidden="true"></span> Lade Messdaten …</div>
         </div>
+        <div class="wind-panel" id="wind-panel" hidden>
+          <div class="wind-panel-head">
+            <p class="wind-panel-title">Wind dazu — Ost-West-Komponente (DWD-Station Schleswig)</p>
+            <div class="wind-panel-legend" aria-hidden="false">
+              <span class="wind-key"><span class="wind-key-chip" style="background:var(--w-ost)"></span>Ostwind — staut Wasser ein</span>
+              <span class="wind-key"><span class="wind-key-chip" style="background:var(--w-west)"></span>Westwind — drückt Wasser hinaus</span>
+            </div>
+          </div>
+          <svg id="wind-svg" role="img" aria-label="Ost-West-Windkomponente im gleichen Zeitraum"></svg>
+        </div>
         <div class="table-wrap" id="table-wrap" hidden>
           <table class="data-table" id="data-table">
             <caption class="visually-hidden">Wasserstände als Tabelle, stündliche Mittelwerte</caption>
           </table>
         </div>
       </div>
+      <p class="chart-explainer">
+        <strong>Warum das zusammenhängt:</strong> Der Wasserstand der Schlei folgt der westlichen Ostsee.
+        Anhaltender <span class="key-ost" aria-hidden="true"></span> <strong>Ostwind</strong> staut Wasser an der Küste
+        und in der Schlei — die Pegel steigen. <span class="key-west" aria-hidden="true"></span> <strong>Westwind</strong>
+        drückt das Wasser hinaus — die Pegel fallen, oft mit einigen Stunden Verzögerung.
+        Gut zu erkennen an markanten Ereignissen: einfach oben auf „31 Tage" schalten und die orangen
+        Westwind-Phasen mit den Tälern der Pegelkurve vergleichen.
+      </p>
     </section>
 
     <!-- ══════════════ KARTE + WISSEN ══════════════ -->

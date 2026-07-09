@@ -62,6 +62,7 @@ const state = {
   current: { schleswig: null, kappeln: null },
   schleimuende: null,   // Livewert, falls die Station wieder sendet
   wind: null,           // aktuelle DWD-Windmessung
+  windHistory: null,    // stündliche Windmessungen der letzten 31 Tage
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -165,6 +166,39 @@ async function loadWind() {
     }
   }
   state.wind = null;
+}
+
+/* Stündliche Windhistorie (31 Tage). k = Ost-West-Komponente in m/s:
+   positiv = Wind aus Ost (staut Wasser ein), negativ = aus West (drückt hinaus). */
+async function loadWindHistory() {
+  const day = (d) => d.toISOString().slice(0, 10);
+  const start = new Date(Date.now() - 31 * 24 * 3600e3);
+  const end = new Date(Date.now() + 24 * 3600e3);
+  const queries = [
+    `dwd_station_id=${WIND_STATION_ID}`,
+    `lat=${WIND_POS.lat}&lon=${WIND_POS.lon}`,
+  ];
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(`https://api.brightsky.dev/weather?${q}&date=${day(start)}&last_date=${day(end)}`);
+      const recs = (data.weather || [])
+        .filter((r) => r.wind_speed != null && r.wind_direction != null)
+        .map((r) => {
+          const ms = r.wind_speed / 3.6;
+          return {
+            t: new Date(r.timestamp),
+            ms,
+            dir: r.wind_direction,
+            k: ms * Math.sin((r.wind_direction * Math.PI) / 180),
+          };
+        })
+        .filter((r) => r.t.getTime() <= Date.now());
+      if (recs.length) { state.windHistory = recs; return true; }
+    } catch (e) {
+      console.warn('Windhistorie-Abfrage fehlgeschlagen:', q, e);
+    }
+  }
+  return false;
 }
 
 function compassSvg(dir) {
@@ -297,6 +331,92 @@ function renderWindTile() {
   tile.appendChild(foot);
 
   return tile;
+}
+
+/* ── HERO: Wind-Animation ───────────────────────────────────────
+   Treibende Windschlieren über der Schlei-Silhouette. Richtung folgt der
+   Messung; Anzahl, Tempo und Streifenlänge skalieren mit der Windstärke. */
+
+const windAnim = { canvas: null, ctx: null, parts: [], raf: 0, params: null, visible: true, dpr: 1, last: 0 };
+
+function windParticle(W, H) {
+  return {
+    x: Math.random() * W, y: Math.random() * H,
+    life: Math.random(),
+    dur: 2.2 + Math.random() * 2.5,
+    jitter: 0.6 + Math.random() * 0.8,
+  };
+}
+
+function setupWindAnimation() {
+  if (!state.wind) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const wrap = $('#fjord-wrap');
+  if (!windAnim.canvas) {
+    const c = document.createElement('canvas');
+    c.id = 'wind-canvas';
+    c.setAttribute('aria-hidden', 'true');
+    wrap.appendChild(c);
+    windAnim.canvas = c;
+    windAnim.ctx = c.getContext('2d');
+    const resize = () => {
+      windAnim.dpr = Math.min(2, window.devicePixelRatio || 1);
+      c.width = Math.max(1, wrap.clientWidth * windAnim.dpr);
+      c.height = Math.max(1, wrap.clientHeight * windAnim.dpr);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    new IntersectionObserver((entries) => { windAnim.visible = entries[0].isIntersecting; }).observe(wrap);
+  }
+
+  const ms = state.wind.speedMs;
+  const b = (((state.wind.dir + 180) % 360) * Math.PI) / 180;   // Strömungsrichtung
+  windAnim.params = {
+    vx: Math.sin(b), vy: -Math.cos(b),
+    speed: 22 + ms * 16,                                        // px/s
+    len: 12 + ms * 4,
+    n: Math.max(10, Math.min(110, Math.round(8 + ms * 9))),
+    alpha: Math.min(0.5, 0.2 + ms * 0.04),
+  };
+  if (!windAnim.raf) {
+    windAnim.last = performance.now();
+    windAnim.raf = requestAnimationFrame(windTick);
+  }
+}
+
+function windTick(now) {
+  windAnim.raf = requestAnimationFrame(windTick);
+  const { canvas: c, ctx, params: p, dpr } = windAnim;
+  const dt = Math.min(0.1, (now - windAnim.last) / 1000);
+  windAnim.last = now;
+  if (!p || document.hidden || !windAnim.visible) return;
+
+  const W = c.width, H = c.height;
+  while (windAnim.parts.length < p.n) windAnim.parts.push(windParticle(W, H));
+  if (windAnim.parts.length > p.n) windAnim.parts.length = p.n;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineWidth = 1.4 * dpr;
+  ctx.lineCap = 'round';
+  const margin = p.len * dpr + 24;
+  for (const q of windAnim.parts) {
+    q.life += dt / q.dur;
+    if (q.life >= 1) Object.assign(q, windParticle(W, H), { life: 0 });
+    const v = p.speed * dpr * q.jitter;
+    q.x += p.vx * v * dt;
+    q.y += p.vy * v * dt;
+    if (q.x < -margin) q.x += W + 2 * margin;
+    if (q.x > W + margin) q.x -= W + 2 * margin;
+    if (q.y < -margin) q.y += H + 2 * margin;
+    if (q.y > H + margin) q.y -= H + 2 * margin;
+    const a = Math.sin(q.life * Math.PI) * p.alpha;
+    ctx.strokeStyle = `rgba(159, 211, 238, ${a.toFixed(3)})`;
+    ctx.beginPath();
+    ctx.moveTo(q.x, q.y);
+    ctx.lineTo(q.x - p.vx * p.len * dpr * q.jitter, q.y - p.vy * p.len * dpr * q.jitter);
+    ctx.stroke();
+  }
 }
 
 /* ── HERO: Schlei-Silhouette ────────────────────────────────── */
@@ -754,27 +874,144 @@ function renderChart() {
   chart.data = sliced;
   chart.geom = { m, pw, ph, W, H, x, y, tMin, tMax };
 
+  renderWindPanel();
   bindChartHover();
   renderTable();
 }
 
+/* Wind-Panel: Ost-West-Komponente unter dem Pegel-Chart, gleiche Zeitachse */
+function renderWindPanel() {
+  const panel = $('#wind-panel');
+  const svg = $('#wind-svg');
+  const hist = state.windHistory;
+  if (!hist || !chart.geom) { panel.hidden = true; chart.windGeom = null; return; }
+
+  const { m, pw, tMin, tMax, W, x } = chart.geom;
+  const slice = hist.filter((r) => r.t.getTime() >= tMin && r.t.getTime() <= tMax);
+  if (slice.length < 2) { panel.hidden = true; chart.windGeom = null; return; }
+  panel.hidden = false;
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  svg.replaceChildren();
+  const H = 150;
+  const mm = { top: 30, bottom: 10 };
+  const ph = H - mm.top - mm.bottom;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const kMax = Math.max(4, Math.ceil(Math.max(...slice.map((r) => Math.abs(r.k)))));
+  const y = (k) => mm.top + ph / 2 - (k / kMax) * (ph / 2);
+
+  // Hilfslinien ± halbe Skala + Nulllinie
+  const kTick = kMax >= 8 ? 5 : 2;
+  for (const kv of [kTick, -kTick]) {
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', m.left); line.setAttribute('x2', m.left + pw);
+    line.setAttribute('y1', y(kv)); line.setAttribute('y2', y(kv));
+    line.setAttribute('class', 'grid-line');
+    svg.appendChild(line);
+    const lbl = document.createElementNS(svgNS, 'text');
+    lbl.setAttribute('x', m.left - 8); lbl.setAttribute('y', y(kv) + 4);
+    lbl.setAttribute('text-anchor', 'end');
+    lbl.setAttribute('class', 'tick-label');
+    lbl.textContent = kv > 0 ? `+${kv}` : `−${kTick}`;
+    svg.appendChild(lbl);
+  }
+  const zero = document.createElementNS(svgNS, 'line');
+  zero.setAttribute('x1', m.left); zero.setAttribute('x2', m.left + pw);
+  zero.setAttribute('y1', y(0)); zero.setAttribute('y2', y(0));
+  zero.setAttribute('class', 'wind-zero');
+  svg.appendChild(zero);
+  const unitLbl = document.createElementNS(svgNS, 'text');
+  unitLbl.setAttribute('x', m.left - 8); unitLbl.setAttribute('y', y(0) + 4);
+  unitLbl.setAttribute('text-anchor', 'end');
+  unitLbl.setAttribute('class', 'tick-label');
+  unitLbl.textContent = 'm/s';
+  svg.appendChild(unitLbl);
+
+  // Fläche + Linie, per clipPath in Ost- (oben) und West-Anteil (unten) getrennt
+  const y0 = y(0);
+  const defs = document.createElementNS(svgNS, 'defs');
+  for (const [id, cy, ch] of [['wclip-ost', 0, y0], ['wclip-west', y0, H - y0]]) {
+    const clip = document.createElementNS(svgNS, 'clipPath');
+    clip.setAttribute('id', id);
+    const rect = document.createElementNS(svgNS, 'rect');
+    rect.setAttribute('x', m.left); rect.setAttribute('y', cy);
+    rect.setAttribute('width', pw); rect.setAttribute('height', Math.max(0, ch));
+    clip.appendChild(rect);
+    defs.appendChild(clip);
+  }
+  svg.appendChild(defs);
+
+  const linePath = slice.map((r, i) => `${i ? 'L' : 'M'}${x(r.t.getTime()).toFixed(1)},${y(r.k).toFixed(1)}`).join('');
+  const areaPath = `${linePath}L${x(slice[slice.length - 1].t.getTime()).toFixed(1)},${y0}L${x(slice[0].t.getTime()).toFixed(1)},${y0}Z`;
+
+  for (const [cls, clip] of [['wind-area-ost', 'wclip-ost'], ['wind-area-west', 'wclip-west']]) {
+    const p = document.createElementNS(svgNS, 'path');
+    p.setAttribute('d', areaPath);
+    p.setAttribute('class', cls);
+    p.setAttribute('clip-path', `url(#${clip})`);
+    svg.appendChild(p);
+  }
+  for (const [cls, clip] of [['wind-line-ost', 'wclip-ost'], ['wind-line-west', 'wclip-west']]) {
+    const p = document.createElementNS(svgNS, 'path');
+    p.setAttribute('d', linePath);
+    p.setAttribute('class', cls);
+    p.setAttribute('clip-path', `url(#${clip})`);
+    svg.appendChild(p);
+  }
+
+  // Richtungspfeile (Strömungsrichtung) als Band über dem Panel
+  const step = Math.max(1, Math.ceil(slice.length / 26));
+  for (let i = 0; i < slice.length; i += step) {
+    const r = slice[i];
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('transform', `translate(${x(r.t.getTime()).toFixed(1)} 13) rotate(${(r.dir + 180) % 360})`);
+    const glyph = document.createElementNS(svgNS, 'path');
+    glyph.setAttribute('d', 'M0,5 L0,-5 M-3,-1.5 L0,-5 L3,-1.5');
+    glyph.setAttribute('class', 'wind-arrow');
+    g.appendChild(glyph);
+    svg.appendChild(g);
+  }
+
+  // Seitenbeschriftung der Pole
+  for (const [txt, ty] of [['OST', mm.top + 12], ['WEST', H - mm.bottom - 5]]) {
+    const lbl = document.createElementNS(svgNS, 'text');
+    lbl.setAttribute('x', m.left + 6); lbl.setAttribute('y', ty);
+    lbl.setAttribute('class', 'wind-side-label');
+    lbl.textContent = txt;
+    svg.appendChild(lbl);
+  }
+
+  const hoverG = document.createElementNS(svgNS, 'g');
+  hoverG.setAttribute('id', 'wind-hover');
+  svg.appendChild(hoverG);
+
+  const hit = document.createElementNS(svgNS, 'rect');
+  hit.setAttribute('x', m.left); hit.setAttribute('y', mm.top);
+  hit.setAttribute('width', pw); hit.setAttribute('height', ph);
+  hit.setAttribute('fill', 'transparent');
+  hit.setAttribute('id', 'wind-hit');
+  svg.appendChild(hit);
+
+  chart.windGeom = { y, mm, H, ph, slice };
+}
+
 function bindChartHover() {
-  const svg = $('#chart-svg');
-  const hit = $('#chart-hit');
   const tooltip = $('#chart-tooltip');
-  const hoverG = $('#hover-layer');
-  if (!hit) return;
   const svgNS = 'http://www.w3.org/2000/svg';
 
-  function onMove(evt) {
+  function onMove(evt, srcSvg) {
     if (!chart.data) return;
     const { m, pw, ph, x, y, tMin, tMax, W } = chart.geom;
-    const rect = svg.getBoundingClientRect();
+    const hoverG = $('#hover-layer');
+    const windHoverG = $('#wind-hover');
+    const rect = srcSvg.getBoundingClientRect();
     const scale = W / rect.width;
     const px = (evt.clientX - rect.left) * scale;
     const tt = tMin + ((px - m.left) / pw) * (tMax - tMin);
 
     hoverG.replaceChildren();
+    windHoverG?.replaceChildren();
     const rows = [];
     let anchorX = null;
 
@@ -793,7 +1030,7 @@ function bindChartHover() {
       dot.setAttribute('r', 5); dot.setAttribute('fill', color);
       dot.setAttribute('class', 'hover-dot');
       hoverG.appendChild(dot);
-      rows.push({ st: s.st, p, color });
+      rows.push({ name: `Pegel ${s.st.name}`, value: `${fmtCm.format(p.v)} cm`, color, t: p.t });
     }
     if (anchorX == null) return;
 
@@ -803,11 +1040,39 @@ function bindChartHover() {
     cross.setAttribute('class', 'crosshair');
     hoverG.prepend(cross);
 
+    // Wind-Panel: Crosshair verlängern + nächste Stundenmessung anzeigen
+    if (chart.windGeom && windHoverG) {
+      const wg = chart.windGeom;
+      const wcross = document.createElementNS(svgNS, 'line');
+      wcross.setAttribute('x1', anchorX); wcross.setAttribute('x2', anchorX);
+      wcross.setAttribute('y1', wg.mm.top); wcross.setAttribute('y2', wg.H - wg.mm.bottom);
+      wcross.setAttribute('class', 'crosshair');
+      windHoverG.appendChild(wcross);
+
+      let best = null;
+      for (const r of wg.slice) {
+        if (!best || Math.abs(r.t.getTime() - tt) < Math.abs(best.t.getTime() - tt)) best = r;
+      }
+      if (best && Math.abs(best.t.getTime() - tt) <= 90 * 60e3) {
+        const dot = document.createElementNS(svgNS, 'circle');
+        dot.setAttribute('cx', x(best.t.getTime())); dot.setAttribute('cy', wg.y(best.k));
+        dot.setAttribute('r', 4.5);
+        dot.setAttribute('fill', cssVar(best.k >= 0 ? '--w-ost' : '--w-west'));
+        dot.setAttribute('class', 'hover-dot');
+        windHoverG.appendChild(dot);
+        rows.push({
+          name: 'Wind',
+          value: `${fmtWind.format(best.ms)} m/s aus ${compassPoint(best.dir)}`,
+          color: cssVar(best.k >= 0 ? '--w-ost' : '--w-west'),
+        });
+      }
+    }
+
     // Tooltip füllen (textContent — Namen sind Fremddaten)
     tooltip.replaceChildren();
     const time = document.createElement('p');
     time.className = 'tt-time';
-    time.textContent = `${fmtDayTime.format(rows[0].p.t)} Uhr`;
+    time.textContent = `${fmtDayTime.format(rows[0].t)} Uhr`;
     tooltip.appendChild(time);
     for (const r of rows) {
       const row = document.createElement('div');
@@ -817,10 +1082,10 @@ function bindChartHover() {
       key.style.background = r.color;
       const name = document.createElement('span');
       name.className = 'tt-name';
-      name.textContent = r.st.name;
+      name.textContent = r.name;
       const val = document.createElement('span');
       val.className = 'tt-val';
-      val.textContent = `${fmtCm.format(r.p.v)} cm`;
+      val.textContent = r.value;
       row.append(key, name, val);
       tooltip.appendChild(row);
     }
@@ -836,12 +1101,18 @@ function bindChartHover() {
   }
 
   function onLeave() {
-    hoverG.replaceChildren();
+    $('#hover-layer')?.replaceChildren();
+    $('#wind-hover')?.replaceChildren();
     tooltip.hidden = true;
   }
 
-  hit.addEventListener('pointermove', onMove);
-  hit.addEventListener('pointerleave', onLeave);
+  for (const [hitSel, svgSel] of [['#chart-hit', '#chart-svg'], ['#wind-hit', '#wind-svg']]) {
+    const hit = $(hitSel);
+    if (!hit) continue;
+    const srcSvg = $(svgSel);
+    hit.addEventListener('pointermove', (evt) => onMove(evt, srcSvg));
+    hit.addEventListener('pointerleave', onLeave);
+  }
 }
 
 /* ── TABELLE (stündliche Mittel) ────────────────────────────── */
@@ -869,6 +1140,16 @@ function renderTable() {
     th.scope = 'col';
     th.textContent = `${st.name} (cm)`;
     hr.appendChild(th);
+  }
+  const windByHour = new Map();
+  if (state.windHistory) {
+    for (const r of state.windHistory) windByHour.set(Math.round(r.t.getTime() / 3600e3), r);
+    for (const label of ['Wind (m/s)', 'Richtung']) {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = label;
+      hr.appendChild(th);
+    }
   }
   thead.appendChild(hr);
   table.appendChild(thead);
@@ -899,6 +1180,14 @@ function renderTable() {
       const v = rec[st.id];
       td.textContent = v ? fmtCm.format(v.sum / v.n) : '–';
       tr.appendChild(td);
+    }
+    if (state.windHistory) {
+      const wr = windByHour.get(key);
+      const tdMs = document.createElement('td');
+      tdMs.textContent = wr ? fmtWind.format(wr.ms) : '–';
+      const tdDir = document.createElement('td');
+      tdDir.textContent = wr ? compassPoint(wr.dir) : '–';
+      tr.append(tdMs, tdDir);
     }
     tbody.appendChild(tr);
   }
@@ -1193,7 +1482,8 @@ async function init() {
   const [, okShort] = await Promise.all([
     loadCurrent(),
     loadMeasurements(2),
-    loadWind().then(renderTiles),
+    loadWind().then(() => { renderTiles(); setupWindAnimation(); }),
+    loadWindHistory(),
   ]);
   for (const st of STATIONS) {
     const cur = state.current[st.id];
@@ -1226,9 +1516,14 @@ async function init() {
   setInterval(async () => {
     if (document.hidden) return;
     loadCurrent();
-    await Promise.all([refreshMeasurements(), loadWind()]);
+    const jobs = [refreshMeasurements(), loadWind()];
+    // Windhistorie ist stündlich — nur nachladen, wenn sie veraltet ist
+    const lastWind = state.windHistory?.[state.windHistory.length - 1]?.t.getTime() ?? 0;
+    if (Date.now() - lastWind > 65 * 60e3) jobs.push(loadWindHistory());
+    await Promise.all(jobs);
     renderChart();
     renderTiles();
+    setupWindAnimation();
   }, 5 * 60e3);
 }
 

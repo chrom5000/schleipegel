@@ -26,6 +26,10 @@
   /* Akzent Schilf — nur Zierde, nie Datenfarbe */
   --reed:        #b98a2f;
 
+  /* Divergenzpaar Windkomponente (validiert): Ost staut ein, West drückt hinaus */
+  --w-ost:       #0d8bab;
+  --w-west:      #cf6f10;
+
   /* Status (fest, nie thematisiert) */
   --st-good:     #0ca30c;
   --st-warn:     #fab219;
@@ -53,6 +57,8 @@
     --s-schleswig: #3d95dd;
     --s-kappeln:   #17aa7a;
     --reed:        #d4a94e;
+    --w-ost:       #1ba0c2;
+    --w-west:      #d0740f;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px -12px rgba(0,0,0,.5);
   }
 }
@@ -604,6 +610,68 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .tt-key { width: 14px; height: 3px; border-radius: 2px; flex: none; }
 .tt-name { color: var(--ink-2); flex: 1; }
 .tt-val { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Wind-Panel unter dem Pegel-Chart (gleiche Zeitachse) */
+
+.wind-panel { margin-top: 4px; border-top: 1px solid var(--hairline); padding-top: 12px; }
+
+.wind-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.wind-panel-title { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+
+.wind-panel-legend { display: flex; gap: 16px; flex-wrap: wrap; }
+
+.wind-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.wind-key-chip { width: 14px; height: 8px; border-radius: 2px; display: inline-block; }
+
+#wind-svg { display: block; width: 100%; height: auto; font-family: var(--font-viz); }
+
+.wind-zero { stroke: var(--baseline); stroke-width: 1; }
+.wind-area-ost { fill: var(--w-ost); opacity: .5; }
+.wind-area-west { fill: var(--w-west); opacity: .5; }
+.wind-line-ost { fill: none; stroke: var(--w-ost); stroke-width: 1.5; }
+.wind-line-west { fill: none; stroke: var(--w-west); stroke-width: 1.5; }
+.wind-arrow { stroke: var(--ink-3); stroke-width: 1.4; fill: none; stroke-linecap: round; }
+.wind-side-label { fill: var(--ink-3); font-size: 10.5px; font-weight: 600; letter-spacing: .05em; }
+
+.chart-explainer {
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--ink-2);
+  max-width: 74ch;
+}
+
+.chart-explainer .key-ost, .chart-explainer .key-west {
+  display: inline-block;
+  width: 11px; height: 11px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.chart-explainer .key-ost { background: var(--w-ost); }
+.chart-explainer .key-west { background: var(--w-west); }
+
+/* Wind-Animation im Hero */
+
+#wind-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
 
 /* Tabelle */
 
