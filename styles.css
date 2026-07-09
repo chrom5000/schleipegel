@@ -285,6 +285,41 @@ a { color: inherit; }
 }
 
 .sun-mark { fill: #ffd97a; opacity: .85; }
+
+/* Mond: silbrige Bahn, Phasen-Glyphe, zweite Zeile in den Ecken */
+.moon-arc {
+  fill: none;
+  stroke: #b9c9d4;
+  stroke-width: 1.3;
+  stroke-dasharray: 1 6;
+  stroke-linecap: round;
+  opacity: .45;
+}
+
+.moon-outline { fill: none; stroke: #b9c9d4; stroke-width: 1; opacity: .55; }
+.moon-lit { fill: #e6edf2; }
+.moon-group.is-below { opacity: .3; }
+
+.moon-phase-label {
+  font-family: var(--font-viz);
+  font-size: 12.5px;
+  fill: #b9c9d4;
+  paint-order: stroke;
+  stroke: var(--hero-deep);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.moon-time {
+  font-family: var(--font-viz);
+  font-size: 14px;
+  font-weight: 550;
+  fill: #b9c9d4;
+  paint-order: stroke;
+  stroke: var(--hero-deep);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
 .sun-disc { fill: #ffe49d; }
 .sun-disc.is-below { opacity: .3; }
 .sun-glow { fill: #ffd97a; opacity: .16; }

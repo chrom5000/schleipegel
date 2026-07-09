@@ -132,21 +132,104 @@ function estimateTrend(series) {
 
 const SUN_POS = { lat: 54.58, lon: 9.82 };
 
-function sunPosition(date) {
-  const rad = Math.PI / 180;
-  const d = date.getTime() / 86400000 - 10957.5;               // Tage seit J2000
-  const g = rad * (357.529 + 0.98560028 * d);
-  const q = 280.459 + 0.98564736 * d;
-  const L = rad * (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g));
-  const e = rad * 23.439;
-  const RA = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
-  const dec = Math.asin(Math.sin(e) * Math.sin(L));
+const RAD = Math.PI / 180;
+
+function daysSinceJ2000(date) {
+  return date.getTime() / 86400000 - 10957.5;
+}
+
+/* Äquatorialkoordinaten → Azimut/Elevation am Referenzpunkt */
+function eqToHorizontal(RA, dec, date) {
+  const d = daysSinceJ2000(date);
   const gmstH = 18.697374558 + 24.06570982441908 * d;
-  const H = rad * (((gmstH * 15 + SUN_POS.lon) % 360 + 360) % 360) - RA;
-  const lat = rad * SUN_POS.lat;
+  const H = RAD * (((gmstH * 15 + SUN_POS.lon) % 360 + 360) % 360) - RA;
+  const lat = RAD * SUN_POS.lat;
   const el = Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(H));
-  const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(lat) - Math.tan(dec) * Math.cos(lat)) / rad + 180;
-  return { el: el / rad, az: ((az % 360) + 360) % 360 };
+  const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(lat) - Math.tan(dec) * Math.cos(lat)) / RAD + 180;
+  return { el: el / RAD, az: ((az % 360) + 360) % 360 };
+}
+
+function sunEquatorial(date) {
+  const d = daysSinceJ2000(date);
+  const g = RAD * (357.529 + 0.98560028 * d);
+  const q = 280.459 + 0.98564736 * d;
+  const L = RAD * (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g));
+  const e = RAD * 23.439;
+  return {
+    RA: Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)),
+    dec: Math.asin(Math.sin(e) * Math.sin(L)),
+  };
+}
+
+function sunPosition(date) {
+  const { RA, dec } = sunEquatorial(date);
+  return eqToHorizontal(RA, dec, date);
+}
+
+/* Mond: Näherung nach Montenbruck/Pfleger (~1°), reicht für die Anzeige */
+function moonEquatorial(date) {
+  const d = daysSinceJ2000(date);
+  const L = RAD * (218.316 + 13.176396 * d);
+  const M = RAD * (134.963 + 13.064993 * d);
+  const F = RAD * (93.272 + 13.229350 * d);
+  const l = L + RAD * 6.289 * Math.sin(M);
+  const b = RAD * 5.128 * Math.sin(F);
+  const e = RAD * 23.4397;
+  return {
+    RA: Math.atan2(Math.sin(l) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(l)),
+    dec: Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l)),
+    dist: 385001 - 20905 * Math.cos(M),
+  };
+}
+
+function moonPosition(date) {
+  const { RA, dec } = moonEquatorial(date);
+  return eqToHorizontal(RA, dec, date);
+}
+
+/* Phase 0 = Neumond, 0,25 = erstes Viertel, 0,5 = Vollmond, 0,75 = letztes Viertel */
+function moonIllumination(date) {
+  const s = sunEquatorial(date);
+  const m = moonEquatorial(date);
+  const SDIST = 149598000;
+  const phi = Math.acos(Math.sin(s.dec) * Math.sin(m.dec)
+    + Math.cos(s.dec) * Math.cos(m.dec) * Math.cos(s.RA - m.RA));
+  const inc = Math.atan2(SDIST * Math.sin(phi), m.dist - SDIST * Math.cos(phi));
+  const angle = Math.atan2(Math.cos(s.dec) * Math.sin(s.RA - m.RA),
+    Math.sin(s.dec) * Math.cos(m.dec) - Math.cos(s.dec) * Math.sin(m.dec) * Math.cos(s.RA - m.RA));
+  return {
+    fraction: (1 + Math.cos(inc)) / 2,
+    phase: 0.5 + (0.5 * inc * (angle < 0 ? -1 : 1)) / Math.PI,
+  };
+}
+
+const MOON_PHASE_NAMES = [
+  [0.03, 'Neumond'], [0.22, 'zunehmende Sichel'], [0.28, 'erstes Viertel'],
+  [0.47, 'zunehmender Mond'], [0.53, 'Vollmond'], [0.72, 'abnehmender Mond'],
+  [0.78, 'letztes Viertel'], [0.97, 'abnehmende Sichel'], [1.01, 'Neumond'],
+];
+
+function moonPhaseName(phase) {
+  return MOON_PHASE_NAMES.find(([lim]) => phase < lim)[1];
+}
+
+/* Mond-Auf-/Untergang und Sichtbarkeitsfenster durch Abtasten des Kalendertags */
+function moonTimes(now = new Date()) {
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const H0 = 0.125;                                // Standardhöhe Mondaufgang
+  let rise = null, set = null;
+  const track = [];                                // [t, el] im 6-min-Raster für die Bahn
+  let prev = moonPosition(start).el;
+  for (let m = 6; m <= 1440; m += 6) {
+    const t = new Date(start.getTime() + m * 60e3);
+    const { el } = moonPosition(t);
+    if (prev <= H0 && el > H0 && !rise) rise = t;
+    if (prev > H0 && el <= H0 && !set) set = t;
+    track.push([t, el]);
+    prev = el;
+  }
+  return { rise, set, track };
 }
 
 /* Auf-/Untergang und Kulmination durch Abtasten des Kalendertags (2-min-Raster) */
@@ -259,16 +342,16 @@ function renderSunLayer() {
     mark.setAttribute('class', 'sun-mark');
     skyLayer.appendChild(mark);
   }
-  const mkLabel = (x, anchor, txt) => {
+  const mkLabel = (x, y, anchor, cls, txt) => {
     const t = document.createElementNS(svgNS, 'text');
-    t.setAttribute('x', x); t.setAttribute('y', -30);
+    t.setAttribute('x', x); t.setAttribute('y', y);
     t.setAttribute('text-anchor', anchor);
-    t.setAttribute('class', 'sun-time');
+    t.setAttribute('class', cls);
     t.textContent = txt;
     skyLayer.appendChild(t);
   };
-  mkLabel(999, 'end', `↑ ${fmtTime.format(rise)} · ${compassPoint(azR)}`);
-  mkLabel(1, 'start', `↓ ${fmtTime.format(set)} · ${compassPoint(azS)}`);
+  mkLabel(999, -30, 'end', 'sun-time', `☀︎ ↑ ${fmtTime.format(rise)} · ${compassPoint(azR)}`);
+  mkLabel(1, -30, 'start', 'sun-time', `☀︎ ↓ ${fmtTime.format(set)} · ${compassPoint(azS)}`);
 
   // Aktuelle Sonne
   const cur = sunPosition(now);
@@ -301,6 +384,87 @@ function renderSunLayer() {
     night.textContent = `Sonne unter dem Horizont · Aufgang ${fmtTime.format(nextRise)} Uhr`;
     skyLayer.appendChild(night);
   }
+
+  renderMoon(skyLayer, ringLayer, geom, now, mkLabel);
+}
+
+/* Beleuchtete Mondfläche als Pfad (Halbkreis + Terminator-Halbellipse) */
+function moonPhasePath(r, phase) {
+  if (phase < 0.02 || phase > 0.98) return '';               // Neumond: nichts beleuchtet
+  const waxing = phase < 0.5;
+  const xr = (waxing ? 1 : -1) * r * Math.cos(2 * Math.PI * phase);
+  const outerSweep = waxing ? 1 : 0;                         // zunehmend: rechte Seite beleuchtet
+  const termSweep = xr >= 0 ? 0 : 1;
+  return `M0,${-r}A${r},${r} 0 0,${outerSweep} 0,${r}A${Math.abs(xr).toFixed(2)},${r} 0 0,${termSweep} 0,${-r}Z`;
+}
+
+function renderMoon(skyLayer, ringLayer, geom, now, mkLabel) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const { rise, set, track } = moonTimes(now);
+  const ill = moonIllumination(now);
+  const phaseName = moonPhaseName(ill.phase);
+  const pct = Math.round(ill.fraction * 100);
+
+  // Mondbahn: alle Über-Horizont-Abschnitte des Tages
+  let d = '';
+  let up = false;
+  for (const [t, el] of track) {
+    if (el > 0) {
+      const m = moonPosition(t);
+      const [px, py] = sunProject(m.az, m.el, geom);
+      d += `${up ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`;
+      up = true;
+    } else {
+      up = false;
+    }
+  }
+  if (d) {
+    const arc = document.createElementNS(svgNS, 'path');
+    arc.setAttribute('d', d);
+    arc.setAttribute('class', 'moon-arc');
+    skyLayer.appendChild(arc);
+  }
+
+  // Aktueller Mond mit Phasen-Glyphe
+  const cur = moonPosition(now);
+  const visible = cur.el > 0;
+  const [px, py] = sunProject(cur.az, Math.max(cur.el, -6), geom);
+  if (visible || cur.el > -6) {
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('transform', `translate(${px.toFixed(1)} ${py.toFixed(1)})`);
+    g.setAttribute('class', visible ? 'moon-group' : 'moon-group is-below');
+    const outline = document.createElementNS(svgNS, 'circle');
+    outline.setAttribute('r', 7);
+    outline.setAttribute('class', 'moon-outline');
+    g.appendChild(outline);
+    const litPath = moonPhasePath(7, ill.phase);
+    if (litPath) {
+      const lit = document.createElementNS(svgNS, 'path');
+      lit.setAttribute('d', litPath);
+      lit.setAttribute('class', 'moon-lit');
+      g.appendChild(lit);
+    }
+    const title = document.createElementNS(svgNS, 'title');
+    title.textContent = `Mond: ${phaseName}, ${pct} % beleuchtet, ${Math.round(cur.el)}° hoch im ${compassPoint(cur.az)}`;
+    g.appendChild(title);
+    (visible ? skyLayer : ringLayer).appendChild(g);
+
+    if (visible) {
+      const lbl = document.createElementNS(svgNS, 'text');
+      lbl.setAttribute('x', px.toFixed(1)); lbl.setAttribute('y', (py + 22).toFixed(1));
+      lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('class', 'moon-phase-label');
+      lbl.textContent = `${phaseName} · ${pct} %`;
+      skyLayer.appendChild(lbl);
+    }
+  }
+
+  // Auf-/Untergang in den Ecken (zweite Zeile unter der Sonne)
+  const dirOf = (t) => compassPoint(moonPosition(t).az);
+  mkLabel(999, -8, 'end', 'moon-time',
+    rise ? `☾ ↑ ${fmtTime.format(rise)} · ${dirOf(rise)}` : '☾ heute kein Aufgang');
+  mkLabel(1, -8, 'start', 'moon-time',
+    set ? `☾ ↓ ${fmtTime.format(set)} · ${dirOf(set)}` : '☾ heute kein Untergang');
 }
 
 /* 3D-Parallaxe: Scroll kippt die Kuppel (rAF-gedrosselt, aus bei reduced motion) */
