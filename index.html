@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schleipegel — Wasserstände Schleswig &amp; Kappeln</title>
+  <meta name="description" content="Aktuelle und historische Wasserstände der Schlei (Ostsee) an den Pegeln Schleswig und Kappeln. Daten: PEGELONLINE / WSV.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230d1b22'/%3E%3Cpath d='M6 20c3-2 5 1 8-1s5 1 8-1 4 0 4 0v6H6z' fill='%233d95dd'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ══════════════ HERO: Die Schlei als Seekarte ══════════════ -->
+  <header class="hero" id="top">
+    <div class="hero-inner">
+      <div class="hero-head">
+        <div class="wordmark">
+          <span class="wordmark-wave" aria-hidden="true">
+            <svg viewBox="0 0 40 40" width="34" height="34"><circle cx="20" cy="20" r="19" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".45"/><path d="M7 24c4-3 6.5 1.5 13-1s9 1.5 13-1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10 29c3.5-2 5.5 1 10-.8s7.5 1 10-.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/></svg>
+          </span>
+          <span class="wordmark-text">Schlei<em>pegel</em></span>
+        </div>
+        <p class="hero-live" id="hero-updated" role="status">Verbinde mit PEGELONLINE …</p>
+      </div>
+
+      <h1 class="hero-title">Wie steht das Wasser<br>in der Schlei?</h1>
+      <p class="hero-sub">Live-Wasserstände des Ostseearms zwischen Schleswig und Schleimünde —
+        gemessen im Minutentakt an den Pegeln <strong>Schleswig</strong> und <strong>Kappeln</strong>
+        der Wasserstraßen- und Schifffahrtsverwaltung des Bundes.</p>
+
+      <!-- Die echte Schlei: Wasserfläche aus OpenStreetMap -->
+      <figure class="fjord" aria-label="Karte der Schlei mit aktuellen Pegelwerten">
+        <div class="fjord-svg-wrap" id="fjord-wrap">
+          <svg id="fjord-svg" viewBox="-40 -60 1080 840" preserveAspectRatio="xMidYMid meet" role="img">
+            <title>Umriss der Schlei mit Pegelstandorten Schleswig und Kappeln</title>
+            <defs>
+              <linearGradient id="waterFill" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0" stop-color="#1c5f8f"/>
+                <stop offset=".55" stop-color="#2478ad"/>
+                <stop offset="1" stop-color="#2e8fbf"/>
+              </linearGradient>
+            </defs>
+            <g id="fjord-body"></g>
+            <g id="fjord-places" aria-hidden="true"></g>
+            <g id="fjord-gauges"></g>
+          </svg>
+        </div>
+        <figcaption class="fjord-caption">Wasserfläche der Schlei — Geometrie © OpenStreetMap-Mitwirkende</figcaption>
+      </figure>
+    </div>
+  </header>
+
+  <main>
+    <!-- ══════════════ AKTUELLE WERTE ══════════════ -->
+    <section class="section" aria-labelledby="now-heading">
+      <div class="section-head">
+        <p class="eyebrow">Aktuelle Messwerte</p>
+        <h2 id="now-heading">Beide Pegel im Blick</h2>
+      </div>
+      <div class="tiles" id="tiles">
+        <!-- Stat-Kacheln werden von app.js gerendert -->
+      </div>
+    </section>
+
+    <!-- ══════════════ VERLAUF ══════════════ -->
+    <section class="section" aria-labelledby="history-heading">
+      <div class="section-head">
+        <p class="eyebrow">Wasserstand im Verlauf</p>
+        <h2 id="history-heading">Die letzten 31 Tage, Minute für Minute</h2>
+        <p class="section-note">PEGELONLINE liefert Rohdaten der letzten 31 Tage.
+          Kennwerte MNW, MW und MHW stammen aus dem Bezugszeitraum 2010–2020.</p>
+      </div>
+
+      <div class="filter-row" role="toolbar" aria-label="Zeitraum und Ansicht">
+        <div class="range-group" role="group" aria-label="Zeitraum" id="range-group">
+          <button class="range-btn" data-range="1" aria-pressed="true">24 Std.</button>
+          <button class="range-btn" data-range="3" aria-pressed="false">3 Tage</button>
+          <button class="range-btn" data-range="7" aria-pressed="false">7 Tage</button>
+          <button class="range-btn" data-range="14" aria-pressed="false">14 Tage</button>
+          <button class="range-btn" data-range="31" aria-pressed="false">31 Tage</button>
+        </div>
+        <button class="view-toggle" id="table-toggle" aria-pressed="false">
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1 2h12M1 5.5h12M1 9h12M1 12.5h12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          Tabelle
+        </button>
+      </div>
+
+      <div class="chart-card viz-root">
+        <div class="chart-head">
+          <div class="legend" id="legend" aria-label="Legende"></div>
+          <p class="chart-unit">Wasserstand in cm über Pegelnullpunkt (≈ −5,0 m NHN)</p>
+        </div>
+        <div class="chart-wrap" id="chart-wrap" aria-hidden="false">
+          <svg id="chart-svg" role="img" aria-labelledby="chart-desc"><desc id="chart-desc">Liniendiagramm der Wasserstände an den Pegeln Schleswig und Kappeln.</desc></svg>
+          <div class="chart-tooltip" id="chart-tooltip" hidden></div>
+          <div class="chart-loading" id="chart-loading"><span class="spinner" aria-hidden="true"></span> Lade Messdaten …</div>
+        </div>
+        <div class="table-wrap" id="table-wrap" hidden>
+          <table class="data-table" id="data-table">
+            <caption class="visually-hidden">Wasserstände als Tabelle, stündliche Mittelwerte</caption>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════ KARTE + WISSEN ══════════════ -->
+    <section class="section" aria-labelledby="place-heading">
+      <div class="section-head">
+        <p class="eyebrow">Das Gewässer</p>
+        <h2 id="place-heading">Ein Ostseearm, zwei Messstellen</h2>
+      </div>
+      <div class="duo">
+        <div class="map-card">
+          <div id="map" aria-label="Karte der Schlei mit Pegelstandorten"></div>
+        </div>
+        <article class="wiki-card" id="wiki-card">
+          <p class="wiki-eyebrow">Aus der Wikipedia</p>
+          <h3 class="wiki-title" id="wiki-title">Die Schlei</h3>
+          <p class="wiki-desc" id="wiki-desc"></p>
+          <p class="wiki-extract" id="wiki-extract">Lade Artikel …</p>
+          <a class="wiki-link" id="wiki-link" href="https://de.wikipedia.org/wiki/Schlei" target="_blank" rel="noopener">
+            Weiterlesen auf Wikipedia
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 9l6-6M4.5 3H9v4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <p class="wiki-license">Text: <a href="https://de.wikipedia.org/wiki/Schlei" target="_blank" rel="noopener">Wikipedia</a>, Lizenz CC BY-SA 4.0</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <p><strong>Datenquellen:</strong>
+        Wasserstände über die <a href="https://www.pegelonline.wsv.de/" target="_blank" rel="noopener">PEGELONLINE</a>-API
+        der Wasserstraßen- und Schifffahrtsverwaltung des Bundes (WSV) ·
+        Karten &amp; Gewässergeometrie © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende ·
+        Enzyklopädie-Inhalte aus der <a href="https://de.wikipedia.org/wiki/Schlei" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA 4.0).</p>
+      <p class="footer-note">Rohdaten ohne Gewähr — für amtliche Auskünfte gilt PEGELONLINE.
+        Kennwerte (MNW/MW/MHW) beziehen sich auf den Zeitraum 1.&nbsp;Nov.&nbsp;2010 – 31.&nbsp;Okt.&nbsp;2020.</p>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="schlei-geo.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
