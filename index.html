@@ -50,7 +50,15 @@
             <g id="fjord-gauges"></g>
           </svg>
         </div>
-        <figcaption class="fjord-caption">Wasserfläche der Schlei — Geometrie © OpenStreetMap-Mitwirkende</figcaption>
+        <figcaption class="fjord-caption">
+          <span class="fjord-bw-legend" id="fjord-bw-legend" hidden>
+            Badewasserqualität:
+            <span class="bw-dot" style="background:var(--st-good)" aria-hidden="true"></span> unauffällig
+            <span class="bw-dot" style="background:var(--st-warn)" aria-hidden="true"></span> erhöht
+            — Klick auf eine Badestelle zeigt die Probenwerte
+          </span>
+          <span>Wasserfläche der Schlei — Geometrie © OpenStreetMap-Mitwirkende</span>
+        </figcaption>
       </figure>
     </div>
   </header>
@@ -142,7 +150,6 @@
         <p class="eyebrow">Das Gewässer</p>
         <h2 id="place-heading">Ein Ostseearm, zwei Messstellen</h2>
       </div>
-      <p class="section-note" id="badewasser-note"></p>
       <div class="duo">
         <div class="map-card">
           <div id="map" aria-label="Karte der Schlei mit Pegelstandorten"></div>
@@ -159,6 +166,7 @@
           <p class="wiki-license">Text: <a href="https://de.wikipedia.org/wiki/Schlei" target="_blank" rel="noopener">Wikipedia</a>, Lizenz CC BY-SA 4.0</p>
         </article>
       </div>
+
     </section>
   </main>
 

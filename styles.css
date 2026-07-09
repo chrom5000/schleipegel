@@ -288,8 +288,31 @@ a { color: inherit; }
   padding: 10px 0 22px;
   font-size: 12px;
   color: #6d8896;
-  text-align: right;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
 }
+
+.fjord-bw-legend { color: #8fa8b4; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.bw-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--hero-deep);
+  vertical-align: -1px;
+}
+
+.fjord-bw-dot {
+  stroke: var(--hero-deep);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: r .15s;
+}
+
+.fjord-bw-dot:hover, .fjord-bw-dot:focus-visible { r: 8; }
 
 /* ══════════════ SECTIONS ══════════════ */
 

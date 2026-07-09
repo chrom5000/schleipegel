@@ -323,15 +323,66 @@ async function loadBadewasser() {
   renderBadestellen();
 }
 
+/* Gleiche Projektion wie schlei-geo.js (equirektangular über der Gewässer-Bbox) */
+const GEO_BBOX = { lon0: 9.5439575, lat0: 54.4900432, lon1: 10.0361676, lat1: 54.6941334, w: 1000, h: 715.6 };
+
+function projGeo(lon, lat) {
+  return [
+    ((lon - GEO_BBOX.lon0) / (GEO_BBOX.lon1 - GEO_BBOX.lon0)) * GEO_BBOX.w,
+    ((GEO_BBOX.lat1 - lat) / (GEO_BBOX.lat1 - GEO_BBOX.lat0)) * GEO_BBOX.h,
+  ];
+}
+
 function renderBadestellen() {
   const bw = state.badewasser;
-  if (!map || !bw?.spots) return;
+  if (!map || !bw?.spots?.length) return;
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  let heroG = $('#fjord-bw');
+  if (!heroG) {
+    heroG = document.createElementNS(svgNS, 'g');
+    heroG.setAttribute('id', 'fjord-bw');
+    $('#fjord-svg').insertBefore(heroG, $('#fjord-gauges'));
+  }
+  heroG.replaceChildren();
+  $('#fjord-bw-legend').hidden = false;
+
   for (const s of bw.spots) {
     const ok = (s.ecoli == null || s.ecoli <= 500) && (s.entero == null || s.entero <= 200);
+    const color = ok ? '#0ca30c' : '#fab219';
+    const detail = s.datum
+      ? `Probe ${new Date(s.datum).toLocaleDateString('de-DE')}: E. coli ${s.ecoli ?? '–'}, Enterokokken ${s.entero ?? '–'}${s.wasserTemp != null ? ` · Wasser ${fmtCm.format(s.wasserTemp)} °C` : ''} · ${ok ? 'Werte unauffällig' : 'Werte erhöht'}`
+      : 'Noch keine Probe in dieser Saison';
+
     const marker = L.circleMarker([s.lat, s.lon], {
-      radius: 5.5, color: '#ffffff', weight: 1.5,
-      fillColor: ok ? '#0ca30c' : '#fab219', fillOpacity: 0.9,
+      radius: 7, color: '#ffffff', weight: 2,
+      fillColor: color, fillOpacity: 0.95,
     }).addTo(map);
+
+    // Ampel-Punkt in der Hero-Silhouette an der echten Position
+    const [hx, hy] = projGeo(s.lon, s.lat);
+    const dot = document.createElementNS(svgNS, 'circle');
+    dot.setAttribute('cx', hx.toFixed(1));
+    dot.setAttribute('cy', hy.toFixed(1));
+    dot.setAttribute('r', 5.5);
+    dot.setAttribute('class', 'fjord-bw-dot');
+    dot.setAttribute('fill', color);
+    dot.setAttribute('tabindex', '0');
+    dot.setAttribute('role', 'button');
+    dot.setAttribute('aria-label', `Badestelle ${s.name}: ${detail}`);
+    const title = document.createElementNS(svgNS, 'title');
+    title.textContent = `${s.name} — ${detail}`;
+    dot.appendChild(title);
+    const openDetails = () => {
+      $('#map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      map.flyTo([s.lat, s.lon], 13, { duration: 0.8 });
+      setTimeout(() => marker.openPopup(), 900);
+    };
+    dot.addEventListener('click', openDetails);
+    dot.addEventListener('keydown', (evt) => {
+      if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); openDetails(); }
+    });
+    heroG.appendChild(dot);
     marker.bindPopup(() => {
       const div = document.createElement('div');
       const name = document.createElement('p');
@@ -350,11 +401,6 @@ function renderBadestellen() {
       div.appendChild(st);
       return div;
     });
-  }
-  const note = $('#badewasser-note');
-  if (note) {
-    const newest = bw.spots.map((s) => s.datum).filter(Boolean).sort().pop();
-    note.textContent = `Badestellen an der Schlei (grün = Werte unauffällig, gelb = erhöht) — amtliche Proben des Landes Schleswig-Holstein, zuletzt vom ${new Date(newest).toLocaleDateString('de-DE')}.`;
   }
 }
 
