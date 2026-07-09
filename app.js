@@ -2144,6 +2144,14 @@ async function init() {
   bindSunTilt();
   setInterval(renderSunLayer, 60e3);
 
+  // Impressum: E-Mail erst zur Laufzeit zusammensetzen (Spam-Schutz)
+  const mail = $('#imprint-mail');
+  if (mail) {
+    const addr = ['maltebohillebrand', 'gmail.com'].join('@');
+    mail.href = `mailto:${addr}`;
+    mail.textContent = addr;
+  }
+
   // Stufe 1: aktuelle Werte + Wind + 2 Tage für schnellen ersten Chart
   const [, okShort] = await Promise.all([
     loadCurrent(),

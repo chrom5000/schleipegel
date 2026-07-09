@@ -953,6 +953,26 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
 .footer-note { margin-top: 10px; font-size: 12.5px; color: #6d8896; }
 
+.imprint {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12.5px;
+  color: #6d8896;
+}
+
+.imprint-title {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #8fa8b4;
+  margin-bottom: 6px;
+}
+
+.imprint a { color: #b8ccd6; }
+
 /* ══════════════ RESPONSIVE FEIN ══════════════ */
 
 @media (max-width: 560px) {
