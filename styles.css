@@ -184,6 +184,14 @@ a { color: inherit; }
 
 .fjord-place-dot { fill: #6d8896; }
 
+/* Kartografischer Halo: Beschriftung bleibt auch auf der Wasserfläche lesbar */
+.fjord-place-label, .fjord-value-label, .fjord-value, .fjord-status {
+  paint-order: stroke;
+  stroke: var(--hero-deep);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
 .fjord-place-label {
   font-family: var(--font-viz);
   font-size: 17px;
@@ -211,6 +219,17 @@ a { color: inherit; }
 }
 
 .fjord-gauge-dot { fill: #ffd97a; stroke: var(--hero-deep); stroke-width: 2.5; }
+
+.fjord-gauge-dot.is-inactive { fill: #6d8896; }
+
+.fjord-value-label.is-inactive { fill: #6d8896; }
+
+.fjord-status {
+  font-family: var(--font-viz);
+  font-size: 16px;
+  font-style: italic;
+  fill: #8fa8b4;
+}
 
 .fjord-value {
   font-family: var(--font-viz);
@@ -372,6 +391,8 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 }
 
 .tile.is-loading .tile-value { color: var(--ink-3); }
+
+.third-gauge-note { margin-top: 14px; }
 
 /* ══════════════ FILTER-ZEILE ══════════════ */
 
@@ -681,5 +702,6 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
   .fjord-place-label { font-size: 22px; }
   .fjord-value { font-size: 34px; }
   .fjord-value-label { font-size: 20px; }
+  .fjord-status { font-size: 22px; }
   .section { padding-top: 42px; }
 }

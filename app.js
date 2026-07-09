@@ -34,6 +34,17 @@ const STATIONS = [
   },
 ];
 
+/* Dritter Schlei-Pegel an der Lotseninsel — seit der Ostsee-Sturmflut
+   außer Betrieb und nicht mehr in der API-Stationsliste. Wird bei jedem
+   Laden erneut angefragt; liefert er wieder Daten, erscheint der Livewert. */
+const SCHLEIMUENDE = {
+  id: 'schleimuende',
+  name: 'Schleimünde',
+  number: '9610025',
+  lat: 54.671, lon: 10.035,
+  svg: [993, 81],
+};
+
 const state = {
   rangeDays: 1,
   tableView: false,
@@ -41,6 +52,7 @@ const state = {
   series: { schleswig: null, kappeln: null },   // volle 31-Tage-Reihe [{t: Date, v: number}]
   seriesDays: 0,                                 // wie viele Tage bereits geladen sind
   current: { schleswig: null, kappeln: null },
+  schleimuende: null,   // Livewert, falls die Station wieder sendet
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -112,7 +124,7 @@ function renderFjord() {
   body.appendChild(water);
 
   for (const [name, [x, y]] of Object.entries(SCHLEI_GEO.places)) {
-    if (name === 'Schleswig' || name === 'Kappeln') continue; // bekommen Pegel-Marker
+    if (name === 'Schleswig' || name === 'Kappeln' || name === 'Schleimünde') continue; // bekommen Pegel-Marker
     const dot = document.createElementNS(svgNS, 'circle');
     dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.setAttribute('r', 3.5);
     dot.setAttribute('class', 'fjord-place-dot');
@@ -166,6 +178,36 @@ function renderFjordGauges() {
     value.textContent = cur ? `${fmtCm.format(cur.value)} cm` : '— cm';
     g.appendChild(value);
   }
+
+  // Schleimünde: außer Betrieb (grau), Livewert nur falls die Station wieder sendet
+  const sm = SCHLEIMUENDE;
+  const [sx, sy] = sm.svg;
+  const live = state.schleimuende;
+
+  const dot = document.createElementNS(svgNS, 'circle');
+  dot.setAttribute('cx', sx); dot.setAttribute('cy', sy); dot.setAttribute('r', 6);
+  dot.setAttribute('class', live ? 'fjord-gauge-dot' : 'fjord-gauge-dot is-inactive');
+  g.appendChild(dot);
+  if (live) {
+    const halo = document.createElementNS(svgNS, 'circle');
+    halo.setAttribute('cx', sx); halo.setAttribute('cy', sy); halo.setAttribute('r', 8);
+    halo.setAttribute('class', 'fjord-gauge-halo');
+    g.insertBefore(halo, dot);
+  }
+
+  const smLabel = document.createElementNS(svgNS, 'text');
+  smLabel.setAttribute('x', sx - 16); smLabel.setAttribute('y', sy - 44);
+  smLabel.setAttribute('text-anchor', 'end');
+  smLabel.setAttribute('class', 'fjord-value-label' + (live ? '' : ' is-inactive'));
+  smLabel.textContent = `Pegel ${sm.name}`;
+  g.appendChild(smLabel);
+
+  const smValue = document.createElementNS(svgNS, 'text');
+  smValue.setAttribute('x', sx - 16); smValue.setAttribute('y', sy - 16);
+  smValue.setAttribute('text-anchor', 'end');
+  smValue.setAttribute('class', live ? 'fjord-value' : 'fjord-status');
+  smValue.textContent = live ? `${fmtCm.format(live.value)} cm` : 'außer Betrieb';
+  g.appendChild(smValue);
 }
 
 /* ── STAT-KACHELN ───────────────────────────────────────────── */
@@ -733,6 +775,33 @@ function renderMap() {
     });
     mapMarkers[st.id] = marker;
   }
+
+  // Schleimünde: grauer Marker, solange außer Betrieb
+  const sm = L.circleMarker([SCHLEIMUENDE.lat, SCHLEIMUENDE.lon], {
+    radius: 8, color: '#ffffff', weight: 2, fillColor: '#8a979c', fillOpacity: 0.85,
+  }).addTo(map);
+  sm.bindPopup(() => {
+    const div = document.createElement('div');
+    const name = document.createElement('p');
+    name.className = 'map-popup-name';
+    name.textContent = `Pegel ${SCHLEIMUENDE.name} SP`;
+    const val = document.createElement('p');
+    val.className = 'map-popup-val';
+    val.textContent = state.schleimuende
+      ? `${fmtCm.format(state.schleimuende.value)} cm · ${fmtDayTime.format(state.schleimuende.timestamp)} Uhr`
+      : 'außer Betrieb — keine Messdaten';
+    div.append(name, val);
+    return div;
+  });
+  mapMarkers[SCHLEIMUENDE.id] = sm;
+}
+
+function updateSchleimuendeMarker() {
+  const marker = mapMarkers[SCHLEIMUENDE.id];
+  if (!marker) return;
+  marker.setStyle(state.schleimuende
+    ? { fillColor: cssVar('--s-kappeln'), fillOpacity: 1 }
+    : { fillColor: '#8a979c', fillOpacity: 0.85 });
 }
 
 /* ── WIKIPEDIA ──────────────────────────────────────────────── */
@@ -803,6 +872,28 @@ function bindControls() {
 
 /* ── DATENFLUSS ─────────────────────────────────────────────── */
 
+/* Schleimünde anfragen — 404 ist der Normalfall, solange sie außer Betrieb ist */
+async function probeSchleimuende() {
+  try {
+    const data = await fetchJson(`${API}/stations/${SCHLEIMUENDE.number}.json?includeTimeseries=true&includeCurrentMeasurement=true`);
+    const ts = data.timeseries?.find((t) => t.shortname === 'W');
+    if (ts?.currentMeasurement?.value != null) {
+      state.schleimuende = {
+        value: ts.currentMeasurement.value,
+        timestamp: new Date(ts.currentMeasurement.timestamp),
+      };
+    }
+  } catch {
+    state.schleimuende = null;
+  }
+  const note = $('#third-gauge-note');
+  if (note) {
+    note.textContent = state.schleimuende
+      ? `Der dritte Schlei-Pegel Schleimünde SP (Lotseninsel) sendet wieder: ${fmtCm.format(state.schleimuende.value)} cm.`
+      : 'Der dritte Schlei-Pegel Schleimünde SP an der Lotseninsel ist derzeit außer Betrieb und liefert keine Messdaten.';
+  }
+}
+
 async function loadCurrent() {
   const results = await Promise.allSettled(STATIONS.map(fetchStationDetails));
   let ok = false;
@@ -830,8 +921,10 @@ async function loadCurrent() {
   } else {
     setStatus('PEGELONLINE derzeit nicht erreichbar', true);
   }
+  await probeSchleimuende();
   renderTiles();
   renderFjordGauges();
+  updateSchleimuendeMarker();
 }
 
 async function loadMeasurements(days) {
