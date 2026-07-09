@@ -1,7 +1,8 @@
-# Schleipegel
+# Schlei-Infocenter
 
-Live-Wasserstände der Schlei (Ostsee) an den Pegeln **Schleswig** und **Kappeln** —
-eine statische Website ohne Build-Schritt.
+Die Schlei auf einen Blick: Live-Wasserstände an den Pegeln **Schleswig** und
+**Kappeln**, Wind mit 48-Stunden-Ausblick, amtliche Warnungen, Badewasserqualität
+und Sonnenlauf — eine statische Website ohne Build-Schritt.
 
 ## Features
 

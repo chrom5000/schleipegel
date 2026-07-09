@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Schleipegel — Wasserstände Schleswig &amp; Kappeln</title>
-  <meta name="description" content="Aktuelle und historische Wasserstände der Schlei (Ostsee) an den Pegeln Schleswig und Kappeln. Daten: PEGELONLINE / WSV.">
+  <title>Schlei-Infocenter — Pegel, Wind, Warnungen &amp; Badewasser</title>
+  <meta name="description" content="Die Schlei auf einen Blick: Live-Wasserstände (Pegel Schleswig & Kappeln), Wind mit 48-Stunden-Ausblick, amtliche Warnungen, Badewasserqualität und Sonnenlauf. Daten: WSV/PEGELONLINE, DWD, Land Schleswig-Holstein.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230d1b22'/%3E%3Cpath d='M6 20c3-2 5 1 8-1s5 1 8-1 4 0 4 0v6H6z' fill='%233d95dd'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,18 +23,18 @@
           <span class="wordmark-wave" aria-hidden="true">
             <svg viewBox="0 0 40 40" width="34" height="34"><circle cx="20" cy="20" r="19" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".45"/><path d="M7 24c4-3 6.5 1.5 13-1s9 1.5 13-1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10 29c3.5-2 5.5 1 10-.8s7.5 1 10-.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/></svg>
           </span>
-          <span class="wordmark-text">Schlei<em>pegel</em></span>
+          <span class="wordmark-text">Schlei<em>&#8209;Infocenter</em></span>
         </div>
         <p class="hero-live" id="hero-updated" role="status">Verbinde mit PEGELONLINE …</p>
       </div>
 
-      <h1 class="hero-title">Wie steht das Wasser<br>in der Schlei?</h1>
-      <p class="hero-sub">Live-Wasserstände des Ostseearms zwischen Schleswig und Schleimünde —
-        gemessen im Minutentakt an den Pegeln <strong>Schleswig</strong> und <strong>Kappeln</strong>
-        der Wasserstraßen- und Schifffahrtsverwaltung des Bundes.</p>
+      <h1 class="hero-title">Die Schlei<br>auf einen Blick</h1>
+      <p class="hero-sub">Live-Wasserstände im Minutentakt an den Pegeln <strong>Schleswig</strong> und
+        <strong>Kappeln</strong>, Wind mit 48-Stunden-Ausblick, amtliche Warnungen, Badewasserqualität
+        und Sonnenlauf — aus den Messnetzen von WSV, DWD und Land Schleswig-Holstein.</p>
 
       <!-- Die echte Schlei: Wasserfläche aus OpenStreetMap -->
-      <figure class="fjord" aria-label="Karte der Schlei mit aktuellen Pegelwerten">
+      <figure class="fjord" aria-label="Karte der Schlei mit aktuellen Pegelwerten, Badestellen, Himmelsrichtungen und Sonnenstand">
         <div class="fjord-svg-wrap" id="fjord-wrap">
           <svg id="fjord-svg" viewBox="-40 -48 1080 828" preserveAspectRatio="xMidYMid meet" role="img">
             <title>Umriss der Schlei mit Pegelstandorten Schleswig und Kappeln</title>
@@ -70,8 +70,8 @@
     <!-- ══════════════ AKTUELLE WERTE ══════════════ -->
     <section class="section" aria-labelledby="now-heading">
       <div class="section-head">
-        <p class="eyebrow">Aktuelle Messwerte</p>
-        <h2 id="now-heading">Beide Pegel im Blick</h2>
+        <p class="eyebrow">Aktuelle Lage</p>
+        <h2 id="now-heading">Pegel, Wind und Ostsee im Blick</h2>
       </div>
       <div class="tiles" id="tiles">
         <!-- Stat-Kacheln werden von app.js gerendert -->
@@ -82,9 +82,10 @@
     <!-- ══════════════ VERLAUF ══════════════ -->
     <section class="section" aria-labelledby="history-heading">
       <div class="section-head">
-        <p class="eyebrow">Wasserstand im Verlauf</p>
-        <h2 id="history-heading">Die letzten 31 Tage, Minute für Minute</h2>
-        <p class="section-note">PEGELONLINE liefert Rohdaten der letzten 31 Tage.
+        <p class="eyebrow">Verlauf &amp; Ausblick</p>
+        <h2 id="history-heading">31 Tage zurück, 48 Stunden voraus</h2>
+        <p class="section-note">PEGELONLINE liefert Pegel-Rohdaten der letzten 31 Tage im Minutentakt;
+          rechts der Jetzt-Linie zeigt das Wind-Panel die Vorhersage (Open-Meteo/ICON).
           Kennwerte MNW, MW und MHW stammen aus dem Bezugszeitraum 2010–2020.</p>
       </div>
 
@@ -148,7 +149,7 @@
     <section class="section" aria-labelledby="place-heading">
       <div class="section-head">
         <p class="eyebrow">Das Gewässer</p>
-        <h2 id="place-heading">Ein Ostseearm, zwei Messstellen</h2>
+        <h2 id="place-heading">Ein Ostseearm zwischen Angeln und Schwansen</h2>
       </div>
       <div class="duo">
         <div class="map-card">
