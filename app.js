@@ -385,7 +385,17 @@ function renderSunLayer() {
     skyLayer.appendChild(night);
   }
 
-  renderMoon(skyLayer, ringLayer, geom, now, mkLabel);
+  const moon = renderMoon(skyLayer, ringLayer, geom, now, mkLabel);
+
+  // Mobile: gut lesbare HTML-Zeile statt der kleinen SVG-Ecklabels
+  const skyInfo = $('#sky-info');
+  if (skyInfo) {
+    const moonTimes = [
+      moon.rise ? `↑ ${fmtTime.format(moon.rise)}` : null,
+      moon.set ? `↓ ${fmtTime.format(moon.set)}` : null,
+    ].filter(Boolean).join(' ');
+    skyInfo.textContent = `☀︎ ${fmtTime.format(rise)} – ${fmtTime.format(set)} Uhr · ☾ ${moonTimes || 'heute nicht'} · ${moon.phaseName} (${moon.pct} %)`;
+  }
 }
 
 /* Beleuchtete Mondfläche als Pfad (Halbkreis + Terminator-Halbellipse) */
@@ -433,17 +443,20 @@ function renderMoon(skyLayer, ringLayer, geom, now, mkLabel) {
     const g = document.createElementNS(svgNS, 'g');
     g.setAttribute('transform', `translate(${px.toFixed(1)} ${py.toFixed(1)})`);
     g.setAttribute('class', visible ? 'moon-group' : 'moon-group is-below');
+    const inner = document.createElementNS(svgNS, 'g');
+    inner.setAttribute('class', 'moon-scale');           // mobil per CSS vergrößerbar
     const outline = document.createElementNS(svgNS, 'circle');
     outline.setAttribute('r', 7);
     outline.setAttribute('class', 'moon-outline');
-    g.appendChild(outline);
+    inner.appendChild(outline);
     const litPath = moonPhasePath(7, ill.phase);
     if (litPath) {
       const lit = document.createElementNS(svgNS, 'path');
       lit.setAttribute('d', litPath);
       lit.setAttribute('class', 'moon-lit');
-      g.appendChild(lit);
+      inner.appendChild(lit);
     }
+    g.appendChild(inner);
     const title = document.createElementNS(svgNS, 'title');
     title.textContent = `Mond: ${phaseName}, ${pct} % beleuchtet, ${Math.round(cur.el)}° hoch im ${compassPoint(cur.az)}`;
     g.appendChild(title);
@@ -465,6 +478,8 @@ function renderMoon(skyLayer, ringLayer, geom, now, mkLabel) {
     rise ? `☾ ↑ ${fmtTime.format(rise)} · ${dirOf(rise)}` : '☾ heute kein Aufgang');
   mkLabel(1, -8, 'start', 'moon-time',
     set ? `☾ ↓ ${fmtTime.format(set)} · ${dirOf(set)}` : '☾ heute kein Untergang');
+
+  return { rise, set, phaseName, pct };
 }
 
 /* 3D-Parallaxe: Scroll kippt die Kuppel (rAF-gedrosselt, aus bei reduced motion) */

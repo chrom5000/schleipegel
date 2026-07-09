@@ -975,12 +975,42 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
 /* ══════════════ RESPONSIVE FEIN ══════════════ */
 
-@media (max-width: 560px) {
+/* Himmelszeile: auf dem Desktop stehen die Zeiten in den SVG-Ecken,
+   mobil ersetzt diese HTML-Zeile die zu klein skalierenden SVG-Labels */
+.sky-info { display: none; }
+
+@media (max-width: 700px) {
   .hero-title { margin-top: 36px; }
   .tile-value { font-size: 38px; }
-  .fjord-place-label { font-size: 22px; }
-  .fjord-value { font-size: 34px; }
-  .fjord-value-label { font-size: 20px; }
-  .fjord-status { font-size: 22px; }
   .section { padding-top: 42px; }
+
+  /* SVG-Texte skalieren mit der Karte — mobil deutlich anheben */
+  .fjord-place-label { font-size: 30px; }
+  .fjord-value { font-size: 48px; }
+  .fjord-value-label { font-size: 27px; }
+  .fjord-status { font-size: 27px; }
+  .compass-letter-hero { font-size: 30px; }
+  .sun-night { font-size: 26px; }
+
+  /* Punkte und Marker mitwachsen lassen (SVG-Geometrie per CSS) */
+  .fjord-gauge-dot { r: 10px; }
+  .fjord-place-dot { r: 6px; }
+  .fjord-bw-dot { r: 9px; }
+  .fjord-bw-dot:hover, .fjord-bw-dot:focus-visible { r: 12px; }
+  .sun-disc { r: 12px; }
+  .sun-glow { r: 26px; }
+  .sun-mark { r: 5px; }
+  .moon-scale { transform: scale(1.7); }
+
+  /* Kleine SVG-Ecklabels und Phasentext ausblenden → HTML-Zeile übernimmt;
+     Schleimünde-Annotation weicht dem Platz (Info steht unter den Kacheln) */
+  .sun-time, .moon-time, .moon-phase-label,
+  .fjord-value-label.is-inactive, .fjord-status { display: none; }
+  .sky-info {
+    display: block;
+    padding-top: 10px;
+    font-size: 13.5px;
+    color: #b8ccd6;
+    text-align: center;
+  }
 }
