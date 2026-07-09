@@ -46,7 +46,11 @@ const SCHLEIMUENDE = {
 };
 
 /* Wind: DWD-Beobachtungen über die Bright-Sky-API (CORS offen, ohne Schlüssel).
-   Punkt mittig über der Schlei — Bright Sky wählt die nächste DWD-Station. */
+   Bevorzugt wird die DWD-Station Schleswig (04466 / WMO 10035) direkt an der
+   Schlei; fällt sie aus, nimmt die Anzeige die nächste Station zum Mittelpunkt
+   der Schlei. (Die WarnWetter-/bund.dev-API liefert nur MOSMIX-Vorhersagen
+   und sendet keine CORS-Header — für Messwerte im Browser ungeeignet.) */
+const WIND_STATION_ID = '04466';
 const WIND_POS = { lat: 54.6, lon: 9.8 };
 
 const state = {
@@ -137,23 +141,30 @@ function compassPoint(deg) {
 }
 
 async function loadWind() {
-  try {
-    const data = await fetchJson(`https://api.brightsky.dev/current_weather?lat=${WIND_POS.lat}&lon=${WIND_POS.lon}`);
-    const w = data.weather;
-    if (w?.wind_speed_10 == null || w?.wind_direction_10 == null) throw new Error('keine Winddaten');
-    const src = (data.sources || []).find((s) => s.station_name) || {};
-    state.wind = {
-      speedMs: w.wind_speed_10 / 3.6,                                  // km/h → m/s
-      gustMs: w.wind_gust_speed_10 != null ? w.wind_gust_speed_10 / 3.6 : null,
-      dir: w.wind_direction_10,
-      timestamp: new Date(w.timestamp),
-      station: src.station_name || 'DWD-Station',
-      distanceKm: src.distance != null ? Math.round(src.distance / 1000) : null,
-    };
-  } catch (e) {
-    console.warn('Winddaten nicht verfügbar:', e);
-    state.wind = null;
+  const queries = [
+    `dwd_station_id=${WIND_STATION_ID}`,                 // Schleswig, direkt an der Schlei
+    `lat=${WIND_POS.lat}&lon=${WIND_POS.lon}`,           // Rückfall: nächste Station
+  ];
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(`https://api.brightsky.dev/current_weather?${q}`);
+      const w = data.weather;
+      if (w?.wind_speed_10 == null || w?.wind_direction_10 == null) continue;
+      const src = (data.sources || []).find((s) => s.station_name) || {};
+      state.wind = {
+        speedMs: w.wind_speed_10 / 3.6,                                  // km/h → m/s
+        gustMs: w.wind_gust_speed_10 != null ? w.wind_gust_speed_10 / 3.6 : null,
+        dir: w.wind_direction_10,
+        timestamp: new Date(w.timestamp),
+        station: src.station_name || 'DWD-Station',
+        distanceKm: src.distance != null ? Math.round(src.distance / 1000) : null,
+      };
+      return;
+    } catch (e) {
+      console.warn('Winddaten-Abfrage fehlgeschlagen:', q, e);
+    }
   }
+  state.wind = null;
 }
 
 function compassSvg(dir) {
