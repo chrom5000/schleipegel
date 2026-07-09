@@ -166,75 +166,159 @@ function sunTimes(now = new Date()) {
   return { rise, set, culm };
 }
 
-/* Sonnenbogen im Hero: Ost-West kartentreu (Aufgang rechts über der Ostsee,
-   Untergang links), Bogenhöhe = tatsächliche Sonnenhöhe. */
+/* Sonne im Hero als Kompassring um die Schlei (Karten-Draufsicht, leicht
+   gekippt): Der Ring ist der Horizont mit N/O/S/W, die Sonne wandert über
+   die Südhälfte — die Sonnenhöhe hebt sie als Kuppelbogen vom Ring ab.
+   Beim Scrollen kippt die Perspektive (echte Re-Projektion, kein Transform). */
+
+const SUN_VIEW = { cx: 500, cy: 340, rx: 530 };
+let sunTiltP = 0;   // Scroll-Fortschritt 0..1
+
+/* Projektion: Azimut auf den Ring, Elevation als Hub Richtung Zenit */
+function sunProject(az, el, geom) {
+  const azr = (az * Math.PI) / 180;
+  const elr = (el * Math.PI) / 180;
+  return [
+    SUN_VIEW.cx + SUN_VIEW.rx * Math.sin(azr) * Math.cos(elr),
+    SUN_VIEW.cy - geom.ry * Math.cos(azr) * Math.cos(elr) - geom.lift * Math.sin(elr),
+  ];
+}
+
 function renderSunLayer() {
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = $('#fjord-svg');
-  let layer = $('#sun-layer');
-  if (!layer) {
-    layer = document.createElementNS(svgNS, 'g');
-    layer.setAttribute('id', 'sun-layer');
-    svg.insertBefore(layer, $('#fjord-body'));
+  let ringLayer = $('#sun-ring');
+  let skyLayer = $('#sun-sky');
+  if (!ringLayer) {
+    ringLayer = document.createElementNS(svgNS, 'g');
+    ringLayer.setAttribute('id', 'sun-ring');
+    svg.insertBefore(ringLayer, $('#fjord-body'));         // Horizont hinter der Landschaft
+    skyLayer = document.createElementNS(svgNS, 'g');
+    skyLayer.setAttribute('id', 'sun-sky');
+    $('#fjord-body').after(skyLayer);                      // Sonne über dem Wasser, unter den Labels
   }
-  layer.replaceChildren();
+  ringLayer.replaceChildren();
+  skyLayer.replaceChildren();
 
   const now = new Date();
   const { rise, set } = sunTimes(now);
-  if (!rise || !set) return;                     // Polartag/-nacht: hier nicht relevant
+  if (!rise || !set) return;                               // Polartag/-nacht: hier nicht relevant
 
+  // Perspektive: beim Scrollen kippt der Ring, die Kuppel richtet sich auf
+  const p = sunTiltP;
+  const geom = { ry: 300 - 70 * p, lift: 62 + 66 * p };
+  const { cx, cy, rx } = SUN_VIEW;
+  const ry = geom.ry;
+
+  // Horizontring (Ellipse) mit Himmelsrichtungen
+  const ring = document.createElementNS(svgNS, 'ellipse');
+  ring.setAttribute('cx', cx); ring.setAttribute('cy', cy);
+  ring.setAttribute('rx', rx); ring.setAttribute('ry', ry);
+  ring.setAttribute('class', 'compass-ring-hero');
+  ringLayer.appendChild(ring);
+
+  for (let i = 0; i < 8; i++) {
+    const az = i * 45;
+    const azr = (az * Math.PI) / 180;
+    const sx = Math.sin(azr), cyr = Math.cos(azr);
+    const tick = document.createElementNS(svgNS, 'line');
+    tick.setAttribute('x1', cx + rx * 0.985 * sx); tick.setAttribute('y1', cy - ry * 0.985 * cyr);
+    tick.setAttribute('x2', cx + rx * 1.015 * sx); tick.setAttribute('y2', cy - ry * 1.015 * cyr);
+    tick.setAttribute('class', 'compass-tick-hero');
+    ringLayer.appendChild(tick);
+    if (i % 2 === 0) {
+      const lbl = document.createElementNS(svgNS, 'text');
+      lbl.setAttribute('x', cx + (rx - 24) * sx);
+      lbl.setAttribute('y', cy - (ry - 20) * cyr + 4);
+      lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('class', 'compass-letter-hero');
+      lbl.textContent = ['N', 'O', 'S', 'W'][i / 2];
+      skyLayer.appendChild(lbl);                           // Buchstaben immer lesbar (vor dem Wasser)
+    }
+  }
+
+  // Tagbogen: Aufgang → Untergang über die Südhälfte, vom Ring abgehoben
   const azR = sunPosition(rise).az, azS = sunPosition(set).az;
-  const X_R = 985, X_L = 15;                     // Aufgang rechts (Ost), Untergang links (West)
-  const xOfAz = (az) => X_R - ((az - azR) / (azS - azR)) * (X_R - X_L);
-  const yOfEl = (el) => -10 - (Math.max(0, el) / 65) * 46;
-
-  // Bogen abtasten
-  const pts = [];
   const span = set.getTime() - rise.getTime();
-  for (let i = 0; i <= 60; i++) {
-    const p = sunPosition(new Date(rise.getTime() + (span * i) / 60));
-    pts.push(`${i ? 'L' : 'M'}${xOfAz(p.az).toFixed(1)},${yOfEl(p.el).toFixed(1)}`);
+  const pts = [];
+  for (let i = 0; i <= 72; i++) {
+    const s = sunPosition(new Date(rise.getTime() + (span * i) / 72));
+    const [px, py] = sunProject(s.az, Math.max(0, s.el), geom);
+    pts.push(`${i ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`);
   }
   const arc = document.createElementNS(svgNS, 'path');
   arc.setAttribute('d', pts.join(''));
   arc.setAttribute('class', 'sun-arc');
-  layer.appendChild(arc);
+  skyLayer.appendChild(arc);
 
-  // Auf-/Untergang beschriften (Zeit + Himmelsrichtung)
+  // Auf-/Untergangsmarken auf dem Ring + Zeiten oben in den Ecken
+  for (const [t, az] of [[rise, azR], [set, azS]]) {
+    const [mx, my] = sunProject(az, 0, geom);
+    const mark = document.createElementNS(svgNS, 'circle');
+    mark.setAttribute('cx', mx); mark.setAttribute('cy', my); mark.setAttribute('r', 3);
+    mark.setAttribute('class', 'sun-mark');
+    skyLayer.appendChild(mark);
+  }
   const mkLabel = (x, anchor, txt) => {
     const t = document.createElementNS(svgNS, 'text');
-    t.setAttribute('x', x); t.setAttribute('y', 8);
+    t.setAttribute('x', x); t.setAttribute('y', -30);
     t.setAttribute('text-anchor', anchor);
     t.setAttribute('class', 'sun-time');
     t.textContent = txt;
-    layer.appendChild(t);
+    skyLayer.appendChild(t);
   };
-  mkLabel(X_R + 14, 'end', `↑ ${fmtTime.format(rise)} · ${compassPoint(azR)}`);
-  mkLabel(X_L - 14, 'start', `↓ ${fmtTime.format(set)} · ${compassPoint(azS)}`);
+  mkLabel(999, 'end', `↑ ${fmtTime.format(rise)} · ${compassPoint(azR)}`);
+  mkLabel(1, 'start', `↓ ${fmtTime.format(set)} · ${compassPoint(azS)}`);
 
   // Aktuelle Sonne
   const cur = sunPosition(now);
   if (cur.el > -0.833 && now >= rise && now <= set) {
-    const cx = xOfAz(cur.az), cy = yOfEl(cur.el);
+    const [px, py] = sunProject(cur.az, cur.el, geom);
     const glow = document.createElementNS(svgNS, 'circle');
-    glow.setAttribute('cx', cx); glow.setAttribute('cy', cy); glow.setAttribute('r', 17);
+    glow.setAttribute('cx', px); glow.setAttribute('cy', py); glow.setAttribute('r', 17);
     glow.setAttribute('class', 'sun-glow');
     const disc = document.createElementNS(svgNS, 'circle');
-    disc.setAttribute('cx', cx); disc.setAttribute('cy', cy); disc.setAttribute('r', 7.5);
+    disc.setAttribute('cx', px); disc.setAttribute('cy', py); disc.setAttribute('r', 7.5);
     disc.setAttribute('class', 'sun-disc');
     const title = document.createElementNS(svgNS, 'title');
     title.textContent = `Sonne: ${Math.round(cur.el)}° hoch, im ${compassPoint(cur.az)} (${Math.round(cur.az)}°)`;
     disc.appendChild(title);
-    layer.append(glow, disc);
+    skyLayer.append(glow, disc);
   } else {
+    // Nachts: Sonne gedimmt unter dem Horizontring an ihrer echten Position
+    if (cur.el > -18) {
+      const [px, py] = sunProject(cur.az, cur.el, geom);
+      const disc = document.createElementNS(svgNS, 'circle');
+      disc.setAttribute('cx', px); disc.setAttribute('cy', py); disc.setAttribute('r', 6);
+      disc.setAttribute('class', 'sun-disc is-below');
+      ringLayer.appendChild(disc);
+    }
     const night = document.createElementNS(svgNS, 'text');
-    night.setAttribute('x', 500); night.setAttribute('y', -22);
+    night.setAttribute('x', 500); night.setAttribute('y', -30);
     night.setAttribute('text-anchor', 'middle');
     night.setAttribute('class', 'sun-night');
     const nextRise = now < rise ? rise : sunTimes(new Date(now.getTime() + 24 * 3600e3)).rise;
     night.textContent = `Sonne unter dem Horizont · Aufgang ${fmtTime.format(nextRise)} Uhr`;
-    layer.appendChild(night);
+    skyLayer.appendChild(night);
   }
+}
+
+/* 3D-Parallaxe: Scroll kippt die Kuppel (rAF-gedrosselt, aus bei reduced motion) */
+function bindSunTilt() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let pending = false;
+  window.addEventListener('scroll', () => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      const p = Math.max(0, Math.min(1, window.scrollY / 700));
+      if (Math.abs(p - sunTiltP) > 0.01) {
+        sunTiltP = p;
+        renderSunLayer();
+      }
+    });
+  }, { passive: true });
 }
 
 /* ── AMTLICHE WARNUNGEN (DWD via Bright Sky) ────────────────── */
@@ -1893,6 +1977,7 @@ async function init() {
   loadAlerts();
   loadBadewasser();
   loadMarine().then(renderTiles);
+  bindSunTilt();
   setInterval(renderSunLayer, 60e3);
 
   // Stufe 1: aktuelle Werte + Wind + 2 Tage für schnellen ersten Chart

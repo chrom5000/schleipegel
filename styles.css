@@ -253,7 +253,28 @@ a { color: inherit; }
   text-transform: uppercase;
 }
 
-/* Sonnenbogen: Aufgang rechts (Ost, kartentreu), Untergang links, Höhe = Sonnenhöhe */
+/* Sonnenkompass: Horizontring mit Himmelsrichtungen, Tagbogen über der Südhälfte */
+.compass-ring-hero {
+  fill: none;
+  stroke: #46606e;
+  stroke-width: 1;
+  opacity: .75;
+}
+
+.compass-tick-hero { stroke: #587280; stroke-width: 1.4; }
+
+.compass-letter-hero {
+  font-family: var(--font-viz);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: .06em;
+  fill: #7d98a6;
+  paint-order: stroke;
+  stroke: var(--hero-deep);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
 .sun-arc {
   fill: none;
   stroke: #ffd97a;
@@ -263,7 +284,9 @@ a { color: inherit; }
   opacity: .65;
 }
 
+.sun-mark { fill: #ffd97a; opacity: .85; }
 .sun-disc { fill: #ffe49d; }
+.sun-disc.is-below { opacity: .3; }
 .sun-glow { fill: #ffd97a; opacity: .16; }
 
 .sun-time {
