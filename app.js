@@ -289,7 +289,7 @@ function renderSunLayer() {
 
   // Perspektive: beim Scrollen kippt der Ring, die Kuppel richtet sich auf
   const p = sunTiltP;
-  const geom = { ry: 300 - 70 * p, lift: 62 + 66 * p };
+  const geom = { ry: 300 - 135 * p, lift: 62 + 135 * p };
   const { cx, cy, rx } = SUN_VIEW;
   const ry = geom.ry;
 
@@ -391,10 +391,22 @@ function renderSunLayer() {
   const skyInfo = $('#sky-info');
   if (skyInfo) {
     const moonTimes = [
-      moon.rise ? `↑ ${fmtTime.format(moon.rise)}` : null,
-      moon.set ? `↓ ${fmtTime.format(moon.set)}` : null,
+      moon.rise ? `↑ ${fmtTime.format(moon.rise)}` : null,
+      moon.set ? `↓ ${fmtTime.format(moon.set)}` : null,
     ].filter(Boolean).join(' ');
-    skyInfo.textContent = `☀︎ ${fmtTime.format(rise)} – ${fmtTime.format(set)} Uhr · ☾ ${moonTimes || 'heute nicht'} · ${moon.phaseName} (${moon.pct} %)`;
+    // Segmente brechen nie intern um (nowrap-Spans), nur an den Trennpunkten
+    skyInfo.replaceChildren();
+    const parts = [
+      `☀︎ ${fmtTime.format(rise)} – ${fmtTime.format(set)} Uhr`,
+      `☾ ${moonTimes || 'heute nicht'}`,
+      `${moon.phaseName} (${moon.pct} %)`,
+    ];
+    parts.forEach((txt, i) => {
+      if (i) skyInfo.append(' · ');
+      const span = document.createElement('span');
+      span.textContent = txt;
+      skyInfo.appendChild(span);
+    });
   }
 }
 
@@ -491,7 +503,7 @@ function bindSunTilt() {
     pending = true;
     requestAnimationFrame(() => {
       pending = false;
-      const p = Math.max(0, Math.min(1, window.scrollY / 700));
+      const p = Math.max(0, Math.min(1, window.scrollY / 450));
       if (Math.abs(p - sunTiltP) > 0.01) {
         sunTiltP = p;
         renderSunLayer();
@@ -2144,6 +2156,10 @@ async function init() {
       b.setAttribute('aria-pressed', String(Number(b.dataset.range) === rangeParam));
     }
   }
+
+  // Debug/Vorschau: ?tilt=0..1 setzt die 3D-Kippe fest
+  const tiltParam = parseFloat(new URLSearchParams(location.search).get('tilt'));
+  if (!Number.isNaN(tiltParam)) sunTiltP = Math.max(0, Math.min(1, tiltParam));
 
   renderFjord();
   renderSunLayer();

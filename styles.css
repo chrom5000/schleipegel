@@ -1013,4 +1013,6 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
     color: #b8ccd6;
     text-align: center;
   }
+
+  .sky-info span { white-space: nowrap; }
 }
