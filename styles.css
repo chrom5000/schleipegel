@@ -997,10 +997,11 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
   .fjord-place-dot { r: 6px; }
   .fjord-bw-dot { r: 9px; }
   .fjord-bw-dot:hover, .fjord-bw-dot:focus-visible { r: 12px; }
-  .sun-disc { r: 12px; }
-  .sun-glow { r: 26px; }
-  .sun-mark { r: 5px; }
-  .moon-scale { transform: scale(1.7); }
+  .sun-disc { r: 20px; }
+  .sun-glow { r: 42px; }
+  .sun-mark { r: 6px; }
+  .moon-scale { transform: scale(2.8); }
+  .moon-group.is-below .moon-scale { transform: scale(2.2); }
 
   /* Kleine SVG-Ecklabels und Phasentext ausblenden → HTML-Zeile übernimmt;
      Schleimünde-Annotation weicht dem Platz (Info steht unter den Kacheln) */

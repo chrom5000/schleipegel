@@ -1093,10 +1093,13 @@ function renderFjordGauges() {
     dot.setAttribute('class', 'fjord-gauge-dot');
     g.appendChild(dot);
 
-    // Wert-Annotation: Schleswig oberhalb, Kappeln links unterhalb
+    // Wert-Annotation: Schleswig oberhalb, Kappeln links unterhalb.
+    // Mobil sind die Schriften größer — Anker und Zeilenabstand mitskalieren.
+    const mobile = window.matchMedia('(max-width: 700px)').matches;
+    const lineGap = mobile ? 56 : 30;
     const anchor = st.id === 'schleswig'
-      ? { x: x + 6, y: y - 78, align: 'start' }
-      : { x: x - 26, y: y - 6, align: 'end' };
+      ? { x: x + 6, y: y - (mobile ? 110 : 78), align: 'start' }
+      : { x: x - 26, y: y - (mobile ? 18 : 6), align: 'end' };
 
     const label = document.createElementNS(svgNS, 'text');
     label.setAttribute('x', anchor.x); label.setAttribute('y', anchor.y);
@@ -1106,7 +1109,7 @@ function renderFjordGauges() {
     g.appendChild(label);
 
     const value = document.createElementNS(svgNS, 'text');
-    value.setAttribute('x', anchor.x); value.setAttribute('y', anchor.y + 30);
+    value.setAttribute('x', anchor.x); value.setAttribute('y', anchor.y + lineGap);
     value.setAttribute('text-anchor', anchor.align);
     value.setAttribute('class', 'fjord-value');
     value.textContent = cur ? `${fmtCm.format(cur.value)} cm` : '— cm';
@@ -2018,7 +2021,10 @@ function bindControls() {
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(renderChart, 150);
+    resizeTimer = setTimeout(() => {
+      renderChart();
+      renderFjordGauges();   // Anker/Zeilenabstand sind breitenabhängig
+    }, 150);
   });
 
   // Farbschema-Wechsel: Chart + Karte neu einfärben
