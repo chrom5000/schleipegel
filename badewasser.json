@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-09T13:52:24+00:00",
+ "updated": "2026-07-10T12:41:31+00:00",
  "quelle": "Land Schleswig-Holstein, Badegewässer-Daten (dl-de/by-2-0)",
  "spots": [
   {
@@ -8,10 +8,10 @@
    "lat": 54.494145,
    "lon": 9.711103,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-06-16",
-   "ecoli": 65.0,
-   "entero": 10.0,
-   "wasserTemp": 14.0
+   "datum": "2026-07-07",
+   "ecoli": 360.0,
+   "entero": 87.0,
+   "wasserTemp": 18.0
   },
   {
    "id": "DESH_PR_0179",
