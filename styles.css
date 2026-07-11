@@ -393,6 +393,16 @@ a { color: inherit; }
   white-space: nowrap;
 }
 
+/* Wetter zum eingestellten Zeitpunkt (Mittel über die Revierpunkte) */
+.wind-wx {
+  margin: 0;
+  padding: 6px 2px 0;
+  font-size: 13px;
+  color: #8fa8b4;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Zoom-Bedienung auf der Silhouette */
 .hero-zoom {
   position: absolute;
@@ -1080,6 +1090,11 @@ main { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
   .sun-mark { r: 6px; }
   .moon-scale { transform: scale(2.8); }
   .moon-group.is-below .moon-scale { transform: scale(2.2); }
+
+  /* Revierwind: Zahlen und Pfeile lesbar (Geometrie skaliert app.js mit) */
+  .vane-value { font-size: 30px; }
+  .vane-shaft { stroke-width: 6; }
+  .wind-wx { text-align: center; font-size: 13.5px; color: #b8ccd6; }
 
   /* Kleine SVG-Ecklabels und Phasentext ausblenden → HTML-Zeile übernimmt;
      Schleimünde-Annotation weicht dem Platz (Info steht unter den Kacheln) */

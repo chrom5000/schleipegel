@@ -76,6 +76,7 @@ const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyV
 const fmtCm = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
 const fmtM = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtWind = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmtTemp = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
 const fmtTime = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
 const fmtDayTime = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const fmtDay = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
@@ -145,7 +146,7 @@ async function loadRevierWind() {
   try {
     const lats = REVIER_POINTS.map((p) => p.lat).join(',');
     const lons = REVIER_POINTS.map((p) => p.lon).join(',');
-    const data = await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&models=icon_d2&wind_speed_unit=ms&timezone=UTC&forecast_days=3`);
+    const data = await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,precipitation,cloud_cover&models=icon_d2&wind_speed_unit=ms&timezone=UTC&forecast_days=3`);
     const arr = Array.isArray(data) ? data : [data];
     const now = Date.now();
     // gemeinsames Zeitraster: von der aktuellen Stunde bis +48 h —
@@ -162,6 +163,9 @@ async function loadRevierWind() {
           ms: arr[pi].hourly.wind_speed_10m[i],
           dir: arr[pi].hourly.wind_direction_10m[i],
           gust: arr[pi].hourly.wind_gusts_10m[i],
+          temp: arr[pi].hourly.temperature_2m?.[i],
+          rain: arr[pi].hourly.precipitation?.[i],
+          cloud: arr[pi].hourly.cloud_cover?.[i],
         })),
       })),
     };
@@ -192,7 +196,11 @@ function renderRevierWind() {
   layer.replaceChildren();
 
   const rw = state.revierWind;
-  if (!rw) { $('#wind-time-row')?.setAttribute('hidden', ''); return; }
+  if (!rw) {
+    $('#wind-time-row')?.setAttribute('hidden', '');
+    $('#wind-wx')?.setAttribute('hidden', '');
+    return;
+  }
   $('#wind-time-row')?.removeAttribute('hidden');
 
   const idx = Math.min(state.revierIdx ?? 0, rw.times.length - 1);
@@ -205,6 +213,23 @@ function renderRevierWind() {
     lbl.textContent = isNow ? `Jetzt (${fmtTime.format(t)} Uhr)` : `${fmtDayTime.format(t)} Uhr`;
   }
 
+  // Wetterzeile zum eingestellten Zeitpunkt: Mittel über die Revierpunkte
+  const wx = $('#wind-wx');
+  if (wx) {
+    const vals = rw.points.map((p) => p.hours[idx]).filter((h) => h && h.temp != null);
+    if (vals.length) {
+      const mean = (key) => vals.reduce((s, h) => s + h[key], 0) / vals.length;
+      const rain = mean('rain');
+      wx.textContent = `${fmtTemp.format(mean('temp'))} °C · Bewölkung ${Math.round(mean('cloud'))} % · ${
+        rain >= 0.05 ? `Regen ${fmtTemp.format(rain)} mm/h` : 'kein Regen'}`;
+      wx.hidden = false;
+    } else wx.hidden = true;
+  }
+
+  // Mobil sind die SVG-Schriften größer — Pfeile und Abstände mitskalieren
+  const mobile = window.matchMedia('(max-width: 700px)').matches;
+  const k = mobile ? 1.8 : 1;
+
   for (const p of rw.points) {
     const h = p.hours[idx];
     if (!h || h.ms == null || h.dir == null) continue;
@@ -216,21 +241,21 @@ function renderRevierWind() {
 
     // Pfeil in Strömungsrichtung (Grundform zeigt nach Süden = Wind aus N),
     // Länge wächst leicht mit der Stärke
-    const len = 26 + Math.min(26, h.ms * 2.6);
+    const len = (26 + Math.min(26, h.ms * 2.6)) * k;
     const ag = document.createElementNS(svgNS, 'g');
     ag.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${h.dir.toFixed(0)})`);
     const shaft = document.createElementNS(svgNS, 'line');
     shaft.setAttribute('x1', 0); shaft.setAttribute('y1', (-len / 2).toFixed(1));
-    shaft.setAttribute('x2', 0); shaft.setAttribute('y2', (len / 2 - 8).toFixed(1));
+    shaft.setAttribute('x2', 0); shaft.setAttribute('y2', (len / 2 - 8 * k).toFixed(1));
     shaft.setAttribute('class', 'vane-shaft');
     const head = document.createElementNS(svgNS, 'path');
-    head.setAttribute('d', `M-6.5,${(len / 2 - 12).toFixed(1)} L0,${(len / 2).toFixed(1)} L6.5,${(len / 2 - 12).toFixed(1)} Z`);
+    head.setAttribute('d', `M${(-6.5 * k).toFixed(1)},${(len / 2 - 12 * k).toFixed(1)} L0,${(len / 2).toFixed(1)} L${(6.5 * k).toFixed(1)},${(len / 2 - 12 * k).toFixed(1)} Z`);
     head.setAttribute('class', 'vane-head');
     ag.append(shaft, head);
     g.appendChild(ag);
 
     const val = document.createElementNS(svgNS, 'text');
-    val.setAttribute('x', x.toFixed(1)); val.setAttribute('y', (y + len / 2 + 20).toFixed(1));
+    val.setAttribute('x', x.toFixed(1)); val.setAttribute('y', (y + len / 2 + (mobile ? 36 : 20)).toFixed(1));
     val.setAttribute('text-anchor', 'middle');
     val.setAttribute('class', 'vane-value');
     val.textContent = fmtWind.format(h.ms);
@@ -238,7 +263,10 @@ function renderRevierWind() {
 
     const title = document.createElementNS(svgNS, 'title');
     const bft = beaufort(h.ms);
-    title.textContent = `${p.name}: ${fmtWind.format(h.ms)} m/s (${fmtCm.format(h.ms * 1.9438)} kn · ${bft} Bft, ${BFT_NAMES[bft]}) aus ${compassPoint(h.dir)}, Böen ${fmtWind.format(h.gust ?? 0)} m/s — ICON-D2`;
+    const wxPart = h.temp != null
+      ? `, ${fmtTemp.format(h.temp)} °C, ${Math.round(h.cloud ?? 0)} % Wolken${(h.rain ?? 0) >= 0.05 ? `, ${fmtTemp.format(h.rain)} mm/h Regen` : ''}`
+      : '';
+    title.textContent = `${p.name}: ${fmtWind.format(h.ms)} m/s (${fmtCm.format(h.ms * 1.9438)} kn · ${bft} Bft, ${BFT_NAMES[bft]}) aus ${compassPoint(h.dir)}, Böen ${fmtWind.format(h.gust ?? 0)} m/s${wxPart} — ICON-D2`;
     g.appendChild(title);
 
     layer.appendChild(g);
@@ -2288,6 +2316,7 @@ function bindControls() {
     resizeTimer = setTimeout(() => {
       renderChart();
       renderFjordGauges();   // Anker/Zeilenabstand sind breitenabhängig
+      renderRevierWind();    // Pfeilgröße ebenso
     }, 150);
   });
 
