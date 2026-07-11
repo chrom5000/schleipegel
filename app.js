@@ -214,10 +214,11 @@ function renderRevierWind() {
     g.setAttribute('class', `wind-vane ${cls}`);
     g.setAttribute('tabindex', '0');
 
-    // Pfeil in Strömungsrichtung, Länge wächst leicht mit der Stärke
+    // Pfeil in Strömungsrichtung (Grundform zeigt nach Süden = Wind aus N),
+    // Länge wächst leicht mit der Stärke
     const len = 26 + Math.min(26, h.ms * 2.6);
     const ag = document.createElementNS(svgNS, 'g');
-    ag.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${((h.dir + 180) % 360).toFixed(0)})`);
+    ag.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${h.dir.toFixed(0)})`);
     const shaft = document.createElementNS(svgNS, 'line');
     shaft.setAttribute('x1', 0); shaft.setAttribute('y1', (-len / 2).toFixed(1));
     shaft.setAttribute('x2', 0); shaft.setAttribute('y2', (len / 2 - 8).toFixed(1));
@@ -1188,8 +1189,31 @@ function windParticle(W, H) {
   };
 }
 
+/* Ortswind für die Animation: die Revierpunkte als Stützstellen,
+   Vektoren zum eingestellten Regler-Zeitpunkt (memoisiert je Index) */
+function revierField() {
+  const rw = state.revierWind;
+  if (!rw) return null;
+  const idx = Math.min(state.revierIdx ?? 0, rw.times.length - 1);
+  if (windAnim.field && windAnim.fieldIdx === idx && windAnim.fieldSrc === rw) return windAnim.field;
+  const pts = [];
+  for (const p of rw.points) {
+    const h = p.hours[idx];
+    if (!h || h.ms == null || h.dir == null) continue;
+    const [x, y] = projGeo(p.lon, p.lat);
+    const b = (((h.dir + 180) % 360) * Math.PI) / 180;
+    pts.push({ x, y, vx: Math.sin(b) * h.ms, vy: -Math.cos(b) * h.ms });
+  }
+  if (!pts.length) return null;
+  pts.meanMs = pts.reduce((s, f) => s + Math.hypot(f.vx, f.vy), 0) / pts.length;
+  windAnim.field = pts;
+  windAnim.fieldIdx = idx;
+  windAnim.fieldSrc = rw;
+  return pts;
+}
+
 function setupWindAnimation() {
-  if (!state.wind) return;
+  if (!state.wind && !state.revierWind) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const wrap = $('#fjord-wrap');
@@ -1210,15 +1234,14 @@ function setupWindAnimation() {
     new IntersectionObserver((entries) => { windAnim.visible = entries[0].isIntersecting; }).observe(wrap);
   }
 
-  const ms = state.wind.speedMs;
-  const b = (((state.wind.dir + 180) % 360) * Math.PI) / 180;   // Strömungsrichtung
-  windAnim.params = {
-    vx: Math.sin(b), vy: -Math.cos(b),
-    speed: 22 + ms * 16,                                        // px/s
-    len: 12 + ms * 4,
-    n: Math.max(10, Math.min(110, Math.round(8 + ms * 9))),
-    alpha: Math.min(0.5, 0.2 + ms * 0.04),
-  };
+  if (state.wind) {
+    const ms = state.wind.speedMs;
+    const b = (((state.wind.dir + 180) % 360) * Math.PI) / 180; // Strömungsrichtung
+    windAnim.params = {
+      vx: Math.sin(b), vy: -Math.cos(b),
+      n: Math.max(10, Math.min(110, Math.round(8 + ms * 9))),
+    };
+  }
   if (!windAnim.raf) {
     windAnim.last = performance.now();
     windAnim.raf = requestAnimationFrame(windTick);
@@ -1230,31 +1253,58 @@ function windTick(now) {
   const { canvas: c, ctx, params: p, dpr } = windAnim;
   const dt = Math.min(0.1, (now - windAnim.last) / 1000);
   windAnim.last = now;
-  if (!p || document.hidden || !windAnim.visible) return;
+  const field = revierField();
+  if ((!p && !field) || document.hidden || !windAnim.visible) return;
 
   const W = c.width, H = c.height;
-  while (windAnim.parts.length < p.n) windAnim.parts.push(windParticle(W, H));
-  if (windAnim.parts.length > p.n) windAnim.parts.length = p.n;
+  const n = field
+    ? Math.max(10, Math.min(110, Math.round(8 + field.meanMs * 9)))
+    : p.n;
+  while (windAnim.parts.length < n) windAnim.parts.push(windParticle(W, H));
+  if (windAnim.parts.length > n) windAnim.parts.length = n;
 
   ctx.clearRect(0, 0, W, H);
   ctx.lineWidth = 1.4 * dpr;
   ctx.lineCap = 'round';
-  const margin = p.len * dpr + 24;
+  const margin = 80 * dpr;
   for (const q of windAnim.parts) {
     q.life += dt / q.dur;
     if (q.life >= 1) Object.assign(q, windParticle(W, H), { life: 0 });
-    const v = p.speed * dpr * q.jitter;
-    q.x += p.vx * v * dt;
-    q.y += p.vy * v * dt;
+
+    let vx, vy, ms;
+    if (field) {
+      // Ortswind: inverse Distanzwichtung über die Revierpunkte,
+      // in viewBox-Koordinaten (folgt damit auch dem Zoom)
+      const sx = heroView.x + (q.x / W) * heroView.w;
+      const sy = heroView.y + (q.y / H) * heroView.h;
+      let sw = 0, ax = 0, ay = 0;
+      for (const f of field) {
+        const dx = sx - f.x, dy = sy - f.y;
+        const w = 1 / (dx * dx + dy * dy + 900);   // ε ≈ 30 px glättet die Spitzen
+        sw += w; ax += f.vx * w; ay += f.vy * w;
+      }
+      ax /= sw; ay /= sw;
+      ms = Math.hypot(ax, ay);
+      vx = ms > 0.01 ? ax / ms : 0;
+      vy = ms > 0.01 ? ay / ms : 0;
+    } else {
+      ({ vx, vy } = p);
+      ms = state.wind?.speedMs ?? 0;
+    }
+
+    const spd = (22 + ms * 16) * dpr * q.jitter;   // px/s
+    const len = (12 + ms * 4) * dpr * q.jitter;
+    q.x += vx * spd * dt;
+    q.y += vy * spd * dt;
     if (q.x < -margin) q.x += W + 2 * margin;
     if (q.x > W + margin) q.x -= W + 2 * margin;
     if (q.y < -margin) q.y += H + 2 * margin;
     if (q.y > H + margin) q.y -= H + 2 * margin;
-    const a = Math.sin(q.life * Math.PI) * p.alpha;
+    const a = Math.sin(q.life * Math.PI) * Math.min(0.5, 0.2 + ms * 0.04);
     ctx.strokeStyle = `rgba(159, 211, 238, ${a.toFixed(3)})`;
     ctx.beginPath();
     ctx.moveTo(q.x, q.y);
-    ctx.lineTo(q.x - p.vx * p.len * dpr * q.jitter, q.y - p.vy * p.len * dpr * q.jitter);
+    ctx.lineTo(q.x - vx * len, q.y - vy * len);
     ctx.stroke();
   }
 }
@@ -2392,7 +2442,7 @@ async function init() {
   loadAlerts();
   loadBadewasser();
   loadMarine().then(renderTiles);
-  loadRevierWind().then(renderRevierWind);
+  loadRevierWind().then(() => { renderRevierWind(); setupWindAnimation(); });
   bindRevierWind();
   bindHeroZoom();
   bindSunTilt();
