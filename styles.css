@@ -342,6 +342,84 @@ a { color: inherit; }
   fill: #8fa8b4;
 }
 
+/* Revierwind: ICON-D2-Pfeile auf der Silhouette, Farbe nach Beaufort */
+.wind-vane { --vane: #8fc3e0; }
+.wind-vane.w2 { --vane: #d8ebf4; }
+.wind-vane.w3 { --vane: #ffd97a; }
+.wind-vane.w4 { --vane: #ff8f5e; }
+
+.vane-shaft { stroke: var(--vane); stroke-width: 3; stroke-linecap: round; }
+.vane-head { fill: var(--vane); }
+
+.vane-value {
+  font-family: var(--font-viz);
+  font-size: 13.5px;
+  font-weight: 600;
+  fill: var(--vane);
+  paint-order: stroke;
+  stroke: var(--hero-deep);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.wind-vane:focus-visible { outline: none; }
+.wind-vane:focus-visible .vane-shaft { stroke-width: 4.5; }
+
+/* Zeitregler unter der Silhouette */
+.wind-time-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2px 0;
+  font-size: 13px;
+  color: #8fa8b4;
+}
+
+.wind-time-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.wind-time-row input[type="range"] { flex: 1; min-width: 0; accent-color: #ffd97a; }
+
+.wind-time-label {
+  min-width: 12ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #d9e6ec;
+  white-space: nowrap;
+}
+
+/* Zoom-Bedienung auf der Silhouette */
+.hero-zoom {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.hero-zoom button {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(13, 27, 34, .72);
+  color: #d9e6ec;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.hero-zoom button:hover { background: rgba(34, 56, 68, .85); }
+
+#fjord-svg { touch-action: pan-y; }
+.fjord-svg-wrap.is-zoomed #fjord-svg { touch-action: none; cursor: grab; }
+.fjord-svg-wrap.is-zoomed #fjord-svg:active { cursor: grabbing; }
+
 .fjord-caption {
   padding: 10px 0 22px;
   font-size: 12px;

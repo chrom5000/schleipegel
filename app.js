@@ -127,6 +127,220 @@ function estimateTrend(series) {
   return Math.abs(diff) < 2 ? 0 : Math.sign(diff);
 }
 
+/* ── REVIERWIND (ICON-D2, 2,2-km-Gitter) ─────────────────────────
+   Windvorhersage an den Revierpunkten entlang der Schlei — als präzise
+   Pfeile direkt auf der Hero-Silhouette, mit Zeitregler für +48 h. */
+
+const REVIER_POINTS = [
+  { name: 'Kleine Breite', lat: 54.513, lon: 9.585 },
+  { name: 'Missunder Enge', lat: 54.532, lon: 9.665 },
+  { name: 'Große Breite', lat: 54.51, lon: 9.72 },
+  { name: 'Sieseby', lat: 54.59, lon: 9.81 },
+  { name: 'Arnis', lat: 54.635, lon: 9.925 },
+  { name: 'Kappeln', lat: 54.663, lon: 9.985 },
+  { name: 'Schleimünde', lat: 54.671, lon: 10.03 },
+];
+
+async function loadRevierWind() {
+  try {
+    const lats = REVIER_POINTS.map((p) => p.lat).join(',');
+    const lons = REVIER_POINTS.map((p) => p.lon).join(',');
+    const data = await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&models=icon_d2&wind_speed_unit=ms&timezone=UTC&forecast_days=3`);
+    const arr = Array.isArray(data) ? data : [data];
+    const now = Date.now();
+    // gemeinsames Zeitraster: von der aktuellen Stunde bis +48 h —
+    // nur Stunden, für die ICON-D2 auch Werte liefert (Modellhorizont ~48 h)
+    const times = arr[0].hourly.time
+      .map((t, i) => ({ t: new Date(`${t}:00Z`), i }))
+      .filter(({ t, i }) => t.getTime() >= now - 3600e3 && t.getTime() <= now + 48.5 * 3600e3
+        && arr[0].hourly.wind_speed_10m[i] != null);
+    state.revierWind = {
+      times: times.map(({ t }) => t),
+      points: REVIER_POINTS.map((p, pi) => ({
+        ...p,
+        hours: times.map(({ i }) => ({
+          ms: arr[pi].hourly.wind_speed_10m[i],
+          dir: arr[pi].hourly.wind_direction_10m[i],
+          gust: arr[pi].hourly.wind_gusts_10m[i],
+        })),
+      })),
+    };
+    const slider = $('#wind-time');
+    if (slider) slider.max = String(state.revierWind.times.length - 1);
+  } catch (e) {
+    console.warn('Revierwind nicht verfügbar:', e);
+    state.revierWind = null;
+  }
+}
+
+function bftClass(ms) {
+  const bft = beaufort(ms);
+  if (bft >= 7) return 'w4';       // Starkwind — Warnfarbe
+  if (bft >= 5) return 'w3';       // frisch
+  if (bft >= 4) return 'w2';       // mäßig-gut
+  return 'w1';                     // leicht
+}
+
+function renderRevierWind() {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  let layer = $('#fjord-wind');
+  if (!layer) {
+    layer = document.createElementNS(svgNS, 'g');
+    layer.setAttribute('id', 'fjord-wind');
+    $('#fjord-svg').insertBefore(layer, $('#fjord-gauges'));
+  }
+  layer.replaceChildren();
+
+  const rw = state.revierWind;
+  if (!rw) { $('#wind-time-row')?.setAttribute('hidden', ''); return; }
+  $('#wind-time-row')?.removeAttribute('hidden');
+
+  const idx = Math.min(state.revierIdx ?? 0, rw.times.length - 1);
+  const t = rw.times[idx];
+
+  // Zeitlabel am Regler
+  const lbl = $('#wind-time-label');
+  if (lbl) {
+    const isNow = idx === 0;
+    lbl.textContent = isNow ? `Jetzt (${fmtTime.format(t)} Uhr)` : `${fmtDayTime.format(t)} Uhr`;
+  }
+
+  for (const p of rw.points) {
+    const h = p.hours[idx];
+    if (!h || h.ms == null || h.dir == null) continue;
+    const [x, y] = projGeo(p.lon, p.lat);
+    const cls = bftClass(h.ms);
+    const g = document.createElementNS(svgNS, 'g');
+    g.setAttribute('class', `wind-vane ${cls}`);
+    g.setAttribute('tabindex', '0');
+
+    // Pfeil in Strömungsrichtung, Länge wächst leicht mit der Stärke
+    const len = 26 + Math.min(26, h.ms * 2.6);
+    const ag = document.createElementNS(svgNS, 'g');
+    ag.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${((h.dir + 180) % 360).toFixed(0)})`);
+    const shaft = document.createElementNS(svgNS, 'line');
+    shaft.setAttribute('x1', 0); shaft.setAttribute('y1', (-len / 2).toFixed(1));
+    shaft.setAttribute('x2', 0); shaft.setAttribute('y2', (len / 2 - 8).toFixed(1));
+    shaft.setAttribute('class', 'vane-shaft');
+    const head = document.createElementNS(svgNS, 'path');
+    head.setAttribute('d', `M-6.5,${(len / 2 - 12).toFixed(1)} L0,${(len / 2).toFixed(1)} L6.5,${(len / 2 - 12).toFixed(1)} Z`);
+    head.setAttribute('class', 'vane-head');
+    ag.append(shaft, head);
+    g.appendChild(ag);
+
+    const val = document.createElementNS(svgNS, 'text');
+    val.setAttribute('x', x.toFixed(1)); val.setAttribute('y', (y + len / 2 + 20).toFixed(1));
+    val.setAttribute('text-anchor', 'middle');
+    val.setAttribute('class', 'vane-value');
+    val.textContent = fmtWind.format(h.ms);
+    g.appendChild(val);
+
+    const title = document.createElementNS(svgNS, 'title');
+    const bft = beaufort(h.ms);
+    title.textContent = `${p.name}: ${fmtWind.format(h.ms)} m/s (${fmtCm.format(h.ms * 1.9438)} kn · ${bft} Bft, ${BFT_NAMES[bft]}) aus ${compassPoint(h.dir)}, Böen ${fmtWind.format(h.gust ?? 0)} m/s — ICON-D2`;
+    g.appendChild(title);
+
+    layer.appendChild(g);
+  }
+}
+
+function bindRevierWind() {
+  $('#wind-time').addEventListener('input', (evt) => {
+    state.revierIdx = Number(evt.target.value);
+    renderRevierWind();
+  });
+}
+
+/* ── HERO-ZOOM (viewBox-basiert: Buttons, Ctrl-Scroll, Pinch, Pan) ── */
+
+const HERO_VIEW = { x: -40, y: -48, w: 1080, h: 828 };
+const heroView = { ...HERO_VIEW };
+
+function applyHeroView() {
+  $('#fjord-svg').setAttribute('viewBox', `${heroView.x.toFixed(1)} ${heroView.y.toFixed(1)} ${heroView.w.toFixed(1)} ${heroView.h.toFixed(1)}`);
+  $('#fjord-wrap').classList.toggle('is-zoomed', heroView.w < HERO_VIEW.w - 1);
+}
+
+function heroZoom(factor, cx = null, cy = null) {
+  // cx/cy in viewBox-Koordinaten; Standard: Mitte
+  const newW = Math.max(240, Math.min(HERO_VIEW.w, heroView.w / factor));
+  const scale = newW / heroView.w;
+  const fx = cx ?? heroView.x + heroView.w / 2;
+  const fy = cy ?? heroView.y + heroView.h / 2;
+  heroView.x = fx - (fx - heroView.x) * scale;
+  heroView.y = fy - (fy - heroView.y) * scale;
+  heroView.w = newW;
+  heroView.h = HERO_VIEW.h * (newW / HERO_VIEW.w);
+  // im Rahmen der Ausgangsansicht bleiben
+  heroView.x = Math.max(HERO_VIEW.x, Math.min(HERO_VIEW.x + HERO_VIEW.w - heroView.w, heroView.x));
+  heroView.y = Math.max(HERO_VIEW.y, Math.min(HERO_VIEW.y + HERO_VIEW.h - heroView.h, heroView.y));
+  applyHeroView();
+}
+
+function svgPointFromEvent(evt) {
+  const svg = $('#fjord-svg');
+  const rect = svg.getBoundingClientRect();
+  return [
+    heroView.x + ((evt.clientX - rect.left) / rect.width) * heroView.w,
+    heroView.y + ((evt.clientY - rect.top) / rect.height) * heroView.h,
+  ];
+}
+
+function bindHeroZoom() {
+  const svg = $('#fjord-svg');
+
+  $('#zoom-in').addEventListener('click', () => heroZoom(1.5));
+  $('#zoom-out').addEventListener('click', () => heroZoom(1 / 1.5));
+  $('#zoom-reset').addEventListener('click', () => {
+    Object.assign(heroView, HERO_VIEW);
+    applyHeroView();
+  });
+
+  // Ctrl/Cmd + Scrollrad bzw. Trackpad-Pinch
+  svg.addEventListener('wheel', (evt) => {
+    if (!evt.ctrlKey && !evt.metaKey) return;
+    evt.preventDefault();
+    const [cx, cy] = svgPointFromEvent(evt);
+    heroZoom(evt.deltaY < 0 ? 1.18 : 1 / 1.18, cx, cy);
+  }, { passive: false });
+
+  // Pan per Drag + Pinch per zwei Finger
+  const pointers = new Map();
+  let lastPinch = 0;
+  svg.addEventListener('pointerdown', (evt) => {
+    pointers.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      lastPinch = Math.hypot(a.x - b.x, a.y - b.y);
+    }
+  });
+  svg.addEventListener('pointermove', (evt) => {
+    const prev = pointers.get(evt.pointerId);
+    if (!prev) return;
+    if (pointers.size === 1 && heroView.w < HERO_VIEW.w - 1) {
+      const rect = svg.getBoundingClientRect();
+      heroView.x -= ((evt.clientX - prev.x) / rect.width) * heroView.w;
+      heroView.y -= ((evt.clientY - prev.y) / rect.height) * heroView.h;
+      heroView.x = Math.max(HERO_VIEW.x, Math.min(HERO_VIEW.x + HERO_VIEW.w - heroView.w, heroView.x));
+      heroView.y = Math.max(HERO_VIEW.y, Math.min(HERO_VIEW.y + HERO_VIEW.h - heroView.h, heroView.y));
+      applyHeroView();
+    }
+    pointers.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (lastPinch > 0 && Math.abs(dist - lastPinch) > 2) {
+        heroZoom(dist / lastPinch, ...svgPointFromEvent(evt));
+        lastPinch = dist;
+      }
+    }
+  });
+  const clear = (evt) => pointers.delete(evt.pointerId);
+  svg.addEventListener('pointerup', clear);
+  svg.addEventListener('pointercancel', clear);
+  svg.addEventListener('pointerleave', clear);
+}
+
 /* ── SONNENSTAND ─────────────────────────────────────────────────
    NOAA-Näherung (±0,2°), ganz ohne API. Referenzpunkt: Mitte der Schlei. */
 
@@ -2178,6 +2392,9 @@ async function init() {
   loadAlerts();
   loadBadewasser();
   loadMarine().then(renderTiles);
+  loadRevierWind().then(renderRevierWind);
+  bindRevierWind();
+  bindHeroZoom();
   bindSunTilt();
   setInterval(renderSunLayer, 60e3);
 
@@ -2233,11 +2450,12 @@ async function init() {
     // Windhistorie/-vorhersage und Marine sind stündlich — nur nachladen, wenn veraltet
     const lastWind = state.windHistory?.[state.windHistory.length - 1]?.t.getTime() ?? 0;
     if (Date.now() - lastWind > 65 * 60e3) {
-      jobs.push(loadWindHistory(), loadWindForecast(), loadMarine());
+      jobs.push(loadWindHistory(), loadWindForecast(), loadMarine(), loadRevierWind());
     }
     await Promise.all(jobs);
     renderChart();
     renderTiles();
+    renderRevierWind();
     setupWindAnimation();
   }, 5 * 60e3);
 }
