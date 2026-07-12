@@ -34,10 +34,11 @@
       { id: 'relief-farbe', type: 'color-relief', source: 'terrain',
         paint: { 'color-relief-color': [
           'interpolate', ['linear'], ['elevation'],
-          -16, '#041a2b',
-          -8, '#0d3d63',
-          -3, '#1c6396',
-          -0.5, '#2e8fbf',
+          // Wasser bleibt in jeder Tiefe eindeutig blau (tief = satt, flach = hell)
+          -16, '#0b3a66',
+          -8, '#155a92',
+          -3, '#2178b2',
+          -0.5, '#39a1d8',
           0.5, '#24455a',
           2, '#141f26',
           20, '#1c333b',
@@ -47,9 +48,9 @@
         paint: { 'hillshade-shadow-color': '#02090e', 'hillshade-highlight-color': '#4b7d9b',
                  'hillshade-accent-color': '#12242e', 'hillshade-exaggeration': 0.55 } },
       { id: 'wasser', type: 'fill', source: 'water',
-        paint: { 'fill-color': '#2478ad', 'fill-opacity': 0.12 } },
+        paint: { 'fill-color': '#2478ad', 'fill-opacity': 0.18 } },
       { id: 'ufer', type: 'line', source: 'water',
-        paint: { 'line-color': '#58b7e8', 'line-width': 1, 'line-opacity': 0.7 } },
+        paint: { 'line-color': '#58b7e8', 'line-width': 1.5, 'line-opacity': 0.85 } },
     ],
     terrain: { source: 'terrain', exaggeration: 2.5 },
   };

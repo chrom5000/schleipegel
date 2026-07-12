@@ -9,12 +9,17 @@ Coverage ELC_INSPIRE__EL.GridCoverage_balticsea, EPSG:25832 — siehe
 .claude/specs/2026-07-12-terrain-spike.md). Ausgabe terrain/{z}/{x}/{y}.png
 wird committet; zur Laufzeit gibt es keine externe Relief-Abhaengigkeit.
 """
-import io, math, os
+import io, json, math, os
 import numpy as np
 import requests
 from PIL import Image
 import rasterio
 from rasterio.warp import transform as warp_transform
+
+FALLBACK_DEPTH = -2.0   # m: Schlei-Pixel ohne BSH-Daten (Datenluecken) → Flachwasser
+MIN_WATER = -0.8        # m: Pixel im OSM-Wasserpolygon werden mindestens so tief —
+                        # sonst gewinnen Land-DEM/Raster-Kanten an schmalen Stellen
+                        # (Arnis, Missunde) und die Schlei liest sich als Land
 
 BBOX = (9.40, 54.40, 10.20, 54.78)          # lon0, lat0, lon1, lat1
 WATER_BBOX = (9.50, 54.47, 10.08, 54.72)    # Schlei + Rand: nur hier volle Aufloesung
@@ -62,6 +67,55 @@ bathy[bathy >= 0] = np.nan               # nur echte Tiefen uebernehmen
 inv = ~ds.transform                       # E/N (25832) → Pixel
 print(f'  {bathy.shape[1]}x{bathy.shape[0]} px, Abdeckung {(~np.isnan(bathy)).mean():.2f}')
 
+# Datenluecken INNERHALB der Schlei-Wasserflaeche mit Flachwasser fuellen,
+# sonst liest sich der Mittelabschnitt als Land (BSH deckt nicht alles ab)
+def fill_water_gaps():
+    rings = json.load(open('water.geojson'))['features'][0]['geometry']['coordinates']
+    h, w = bathy.shape
+    cols, rows = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
+    es, ns = ds.transform * (cols.ravel(), rows.ravel())
+    lons, lats = warp_transform(ds.crs, 'EPSG:4326', np.asarray(es), np.asarray(ns))
+    lons = np.asarray(lons); lats = np.asarray(lats)
+    inside = np.zeros(lons.shape, bool)
+    for ring in rings:                                    # Crossing-Number-Test
+        xs = np.array([p[0] for p in ring[0]]); ys = np.array([p[1] for p in ring[0]])
+        m = np.zeros(lons.shape, bool)
+        j = len(xs) - 1
+        for i in range(len(xs)):
+            if ys[i] != ys[j]:
+                cond = ((ys[i] > lats) != (ys[j] > lats)) & \
+                       (lons < (xs[j] - xs[i]) * (lats - ys[i]) / (ys[j] - ys[i]) + xs[i])
+                m ^= cond
+            j = i
+        inside |= m
+    inside = inside.reshape(bathy.shape)
+    gaps = inside & np.isnan(bathy)
+    bathy[gaps] = FALLBACK_DEPTH
+    print(f'  {int(gaps.sum())} Luecken-Pixel in der Schlei mit {FALLBACK_DEPTH} m gefuellt '
+          f'(Wasserflaeche jetzt {(~np.isnan(bathy[inside])).mean():.2f} abgedeckt)')
+
+fill_water_gaps()
+
+WATER_RINGS = json.load(open('water.geojson'))['features'][0]['geometry']['coordinates']
+
+def inside_water(lons, lats):
+    """Punkt-in-Polygon (Crossing Number), vektorisiert; Ring-Bbox-Vorfilter."""
+    inside = np.zeros(lons.shape, bool)
+    lo0, lo1 = lons.min(), lons.max(); la0, la1 = lats.min(), lats.max()
+    for ring in WATER_RINGS:
+        xs = np.array([p[0] for p in ring[0]]); ys = np.array([p[1] for p in ring[0]])
+        if xs.max() < lo0 or xs.min() > lo1 or ys.max() < la0 or ys.min() > la1:
+            continue
+        m = np.zeros(lons.shape, bool); j = len(xs) - 1
+        for i in range(len(xs)):
+            if ys[i] != ys[j]:
+                cond = ((ys[i] > lats) != (ys[j] > lats)) & \
+                       (lons < (xs[j] - xs[i]) * (lats - ys[i]) / (ys[j] - ys[i]) + xs[i])
+                m ^= cond
+            j = i
+        inside |= m
+    return inside
+
 def bathy_at(lons, lats):
     es, ns = warp_transform('EPSG:4326', ds.crs, lons.ravel(), lats.ravel())
     cols, rows = inv * (np.asarray(es), np.asarray(ns))
@@ -81,8 +135,14 @@ for z in ZOOMS:
             elev = decode_terrarium(Image.open(io.BytesIO(r.content)))
             lons, lats = tile_lonlat_grid(z, x, y)
             depth = bathy_at(lons, lats)
-            use = ~np.isnan(depth) & (elev <= 1.0)   # nur Wasserflaeche ersetzen
+            # Bathymetrie existiert nur auf Wasser — bedingungslos ersetzen.
+            # (Ein elev-Filter wuerde schmale Abschnitte auslassen, wo das
+            # Land-DEM ueber dem Wasserlauf >1 m meldet.)
+            use = ~np.isnan(depth)
             elev[use] = depth[use]
+            # Innerhalb der OSM-Wasserflaeche ist die Schlei garantiert Wasser
+            ins = inside_water(lons, lats)
+            elev[ins] = np.minimum(elev[ins], MIN_WATER)
             os.makedirs(f'terrain/{z}/{x}', exist_ok=True)
             encode_terrarium(elev).save(f'terrain/{z}/{x}/{y}.png', optimize=True)
             total += 1
