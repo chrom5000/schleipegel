@@ -21,7 +21,8 @@ MIN_WATER = -0.8        # m: Pixel im OSM-Wasserpolygon werden mindestens so tie
                         # sonst gewinnen Land-DEM/Raster-Kanten an schmalen Stellen
                         # (Arnis, Missunde) und die Schlei liest sich als Land
 
-BBOX = (9.40, 54.40, 10.20, 54.78)          # lon0, lat0, lon1, lat1
+BBOX = (9.30, 54.33, 10.45, 54.95)          # lon0, lat0, lon1, lat1 — weit genug,
+                                            # dass der Nebel die Modellkante schluckt
 WATER_BBOX = (9.50, 54.47, 10.08, 54.72)    # Schlei + Rand: nur hier volle Aufloesung
 ZOOMS = range(9, 14)
 DETAIL_ZOOM = 13                            # ab hier nur Kacheln im WATER_BBOX
@@ -29,7 +30,7 @@ DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.p
 # Spike-Ergebnis: BSH-Ostsee-Coverage, Subsets in UTM 32N (Metern)
 BSH_URL = ('https://gdi.bsh.de/mapservice_gs/ELC_INSPIRE/ows?service=WCS&version=2.0.1'
            '&request=GetCoverage&coverageId=ELC_INSPIRE__EL.GridCoverage_balticsea'
-           '&subset=E(525900,577200)&subset=N(6028000,6071000)&format=image/tiff')
+           '&subset=E(519000,594000)&subset=N(6021000,6090000)&format=image/tiff')
 
 def tile_range(z, bbox):
     def xy(lon, lat):
@@ -52,8 +53,8 @@ def decode_terrarium(img):
     return a[..., 0] * 256 + a[..., 1] + a[..., 2] / 256 - 32768
 
 def encode_terrarium(elev):
-    # Auf 0,25 m quantisieren: kaum Praezisionsverlust, deutlich kleinere PNGs
-    v = np.round((np.clip(elev, -11000, 8900) + 32768) * 4) / 4
+    # Auf 1/16 m quantisieren: Banding unsichtbar, PNGs bleiben klein genug
+    v = np.round((np.clip(elev, -11000, 8900) + 32768) * 16) / 16
     r = np.floor(v / 256); g = np.floor(v % 256); b = np.floor((v - np.floor(v)) * 256)
     return Image.fromarray(np.stack([r, g, b], axis=-1).astype(np.uint8))
 
@@ -106,13 +107,35 @@ def inside_water(z, x, y, size=256):
 
 fill_water_gaps()
 
+def blur(a, passes=2):
+    """Weicher Separable-Blur (1,4,6,4,1)/16 — NaN-tolerant."""
+    k = np.array([1, 4, 6, 4, 1], float) / 16
+    v = np.nan_to_num(a, nan=0.0)
+    w = (~np.isnan(a)).astype(float)
+    for _ in range(passes):
+        for axis in (0, 1):
+            v = np.apply_along_axis(lambda m: np.convolve(m, k, mode='same'), axis, v)
+            w = np.apply_along_axis(lambda m: np.convolve(m, k, mode='same'), axis, w)
+    out = np.divide(v, w, out=np.full_like(v, np.nan), where=w > 1e-6)
+    out[np.isnan(a)] = np.nan
+    return out
+
+# 50-m-Raster glaetten, sonst wirken die Tiefen blockig ("GIS-Look")
+bathy = blur(bathy)
+
 def bathy_at(lons, lats):
+    """Bilineare Interpolation statt nearest — glatte Uebergaenge."""
     es, ns = warp_transform('EPSG:4326', ds.crs, lons.ravel(), lats.ravel())
     cols, rows = inv * (np.asarray(es), np.asarray(ns))
-    cols = np.round(cols).astype(int); rows = np.round(rows).astype(int)
-    ok = (rows >= 0) & (rows < bathy.shape[0]) & (cols >= 0) & (cols < bathy.shape[1])
+    c0 = np.floor(cols - 0.5).astype(int); r0 = np.floor(rows - 0.5).astype(int)
+    fc = (cols - 0.5) - c0; fr = (rows - 0.5) - r0
     out = np.full(lons.size, np.nan)
-    out[ok] = bathy[rows[ok], cols[ok]]
+    ok = (r0 >= 0) & (r0 < bathy.shape[0] - 1) & (c0 >= 0) & (c0 < bathy.shape[1] - 1)
+    if ok.any():
+        r, c, u, v = r0[ok], c0[ok], fr[ok], fc[ok]
+        q = (bathy[r, c] * (1 - u) * (1 - v) + bathy[r + 1, c] * u * (1 - v)
+             + bathy[r, c + 1] * (1 - u) * v + bathy[r + 1, c + 1] * u * v)
+        out[ok] = q                          # NaN-Nachbarn ergeben NaN → Rand bleibt sauber
     return out.reshape(lons.shape)
 
 total = 0

@@ -432,6 +432,19 @@ a { color: inherit; }
 
 /* 3D-Hero: Modus (data-hero-mode) steuert Silhouette vs. MapLibre */
 #hero3d { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .4s; }
+
+/* Vignette: die Modellkante löst sich in der Dämmerung auf statt hart zu enden
+   (nur in Revier 3D — die Seekarte soll randlos bleiben) */
+:root[data-hero-mode="3d"] #hero3d::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    linear-gradient(to bottom, #0d1b22 0%, rgba(13, 27, 34, 0) 24%),
+    linear-gradient(to right, rgba(13, 27, 34, .85) 0%, rgba(13, 27, 34, 0) 12%),
+    linear-gradient(to left, rgba(13, 27, 34, .85) 0%, rgba(13, 27, 34, 0) 12%);
+}
 :root[data-hero-mode="3d"] #hero3d,
 :root[data-hero-mode="chart"] #hero3d { opacity: 1; pointer-events: auto; }
 :root[data-hero-mode="3d"] #fjord-svg,
@@ -446,7 +459,13 @@ a { color: inherit; }
 .hero3d-controls {
   position: absolute; top: 10px; left: 10px;
   display: flex; flex-wrap: wrap; gap: 6px; max-width: 70%;
+  z-index: 3;               /* über der Hero-Vignette */
 }
+
+/* Marker, Popups und Attribution bleiben über der Vignette */
+#hero3d .maplibregl-marker { z-index: 2; }
+#hero3d .maplibregl-popup { z-index: 4; }
+#hero3d .maplibregl-ctrl-bottom-right { z-index: 3; }
 
 .hero3d-controls button {
   padding: 6px 10px; border-radius: 9px;

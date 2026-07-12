@@ -25,36 +25,55 @@
     sources: {
       terrain: { type: 'raster-dem', tiles: [`terrain/{z}/{x}/{y}.png?v=${BUILD}`],
                  encoding: 'terrarium', tileSize: 256, minzoom: 9, maxzoom: 13,
-                 bounds: [9.40, 54.40, 10.20, 54.78],
+                 bounds: [9.30, 54.33, 10.45, 54.95],
                  attribution: 'Relief: BSH (DL-DE-BY-2.0) · Terrain Tiles' },
       water: { type: 'geojson', data: `water.geojson?v=${BUILD}` },
       seamarks: { type: 'geojson', data: `seamarks.json?v=${BUILD}`,
                   attribution: 'Seezeichen: © OSM — nicht zur Navigation' },
       depths: { type: 'geojson', data: `depths.json?v=${BUILD}` },
     },
+    sky: {
+      'sky-color': '#0a1620',
+      'horizon-color': '#14293a',
+      'fog-color': '#0d1b22',
+      'sky-horizon-blend': 0.7,
+      'horizon-fog-blend': 0.9,
+      'fog-ground-blend': 0.45,
+      'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 9, 1, 12, 0.6, 14, 0],
+    },
     layers: [
       { id: 'bg', type: 'background', paint: { 'background-color': '#0d1b22' } },
-      // Seegrund nach Tiefe eingefärbt (hell = flach), Land in dunklen Tönen
+      // Seegrund nach Tiefe (hell = flach, satt = tief), Land in ruhigen
+      // Blaugrautoenen, die mit der Hoehe leicht aufhellen — feine Rampe
+      // gegen Banding
       { id: 'relief-farbe', type: 'color-relief', source: 'terrain',
         paint: { 'color-relief-color': [
           'interpolate', ['linear'], ['elevation'],
-          // Wasser bleibt in jeder Tiefe eindeutig blau (tief = satt, flach = hell)
-          -16, '#0b3a66',
-          -8, '#155a92',
-          -3, '#2178b2',
-          -0.5, '#39a1d8',
-          0.5, '#24455a',
-          2, '#141f26',
-          20, '#1c333b',
-          45, '#264550',
+          -16, '#123f6e',
+          -10, '#17517f',
+          -6, '#1d6293',
+          -3.5, '#2274a8',
+          -2, '#2b87bd',
+          -1, '#379dd2',
+          -0.4, '#45b1e2',
+          0.3, '#2c4f61',
+          1.2, '#15222a',
+          6, '#1a2c34',
+          14, '#20363f',
+          28, '#27424c',
+          45, '#2e4e59',
         ] } },
       { id: 'relief', type: 'hillshade', source: 'terrain',
-        paint: { 'hillshade-shadow-color': '#02090e', 'hillshade-highlight-color': '#4b7d9b',
-                 'hillshade-accent-color': '#12242e', 'hillshade-exaggeration': 0.55 } },
+        paint: { 'hillshade-shadow-color': '#050f16', 'hillshade-highlight-color': '#3d6a85',
+                 'hillshade-accent-color': '#0f2029', 'hillshade-exaggeration': 0.35 } },
       { id: 'wasser', type: 'fill', source: 'water',
-        paint: { 'fill-color': '#2478ad', 'fill-opacity': 0.18 } },
+        paint: { 'fill-color': '#2478ad', 'fill-opacity': 0.12 } },
+      // Leuchtende Uferlinie: weicher Glow unter feinem Kern
+      { id: 'ufer-glow', type: 'line', source: 'water',
+        paint: { 'line-color': '#58b7e8', 'line-width': 3.5, 'line-opacity': 0.22,
+                 'line-blur': 3 } },
       { id: 'ufer', type: 'line', source: 'water',
-        paint: { 'line-color': '#58b7e8', 'line-width': 1.5, 'line-opacity': 0.85 } },
+        paint: { 'line-color': '#7fd0f2', 'line-width': 0.9, 'line-opacity': 0.9 } },
       // Seekartendaten nur in Revier 3D — die Seekarten-Ansicht hat sie nativ
       { id: 'depth-label', type: 'symbol', source: 'depths', minzoom: 12,
         layout: { 'text-field': ['get', 'label'], 'text-font': ['noto'], 'text-size': 11 },
@@ -123,6 +142,7 @@
       ...PRESETS.schlei,
       maxBounds: MAX_BOUNDS, minZoom: 9, maxZoom: 15.5,
       cooperativeGestures: true, attributionControl: { compact: true },
+      antialias: true,
     });
     map.on('error', (e) => console.warn('hero3d:', e.error?.message ?? e));
     // Bei Kartendrehung bleiben die Windzahlen aufrecht (Pfeile sind kartenfest)
