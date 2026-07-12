@@ -28,6 +28,8 @@
                  bounds: [9.30, 54.33, 10.45, 54.95],
                  attribution: 'Relief: BSH (DL-DE-BY-2.0) · Terrain Tiles' },
       water: { type: 'geojson', data: `water.geojson?v=${BUILD}` },
+      land: { type: 'geojson', data: `land.geojson?v=${BUILD}` },
+      beaches: { type: 'geojson', data: `beaches.json?v=${BUILD}` },
       seamarks: { type: 'geojson', data: `seamarks.json?v=${BUILD}`,
                   attribution: 'Seezeichen: © OSM — nicht zur Navigation' },
       depths: { type: 'geojson', data: `depths.json?v=${BUILD}` },
@@ -63,17 +65,26 @@
           28, '#27424c',
           45, '#2e4e59',
         ] } },
+      // Land als Vektorflaeche: die Uferlinie ist damit bei jedem Zoom exakt
+      // (das Tiefenraster verschluckt schmale Landformen wie den Arnis-Damm)
+      { id: 'land', type: 'fill', source: 'land',
+        paint: { 'fill-color': '#1a2b34' } },
       { id: 'relief', type: 'hillshade', source: 'terrain',
-        paint: { 'hillshade-shadow-color': '#050f16', 'hillshade-highlight-color': '#3d6a85',
-                 'hillshade-accent-color': '#0f2029', 'hillshade-exaggeration': 0.35 } },
+        paint: { 'hillshade-shadow-color': '#03090e', 'hillshade-highlight-color': '#4f83a2',
+                 'hillshade-accent-color': '#0f2029', 'hillshade-exaggeration': 0.55 } },
       { id: 'wasser', type: 'fill', source: 'water',
         paint: { 'fill-color': '#2478ad', 'fill-opacity': 0.12 } },
-      // Leuchtende Uferlinie: weicher Glow unter feinem Kern
+      // Uferlinie: leicht sattes Gruen, feiner Kern ueber weichem Saum
       { id: 'ufer-glow', type: 'line', source: 'water',
-        paint: { 'line-color': '#58b7e8', 'line-width': 3.5, 'line-opacity': 0.22,
-                 'line-blur': 3 } },
+        paint: { 'line-color': '#3f9e6b', 'line-opacity': 0.35, 'line-blur': 3,
+                 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 4, 14, 6] } },
       { id: 'ufer', type: 'line', source: 'water',
-        paint: { 'line-color': '#7fd0f2', 'line-width': 0.9, 'line-opacity': 0.9 } },
+        paint: { 'line-color': '#5cbd85', 'line-opacity': 0.95,
+                 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.4, 14, 2] } },
+      // Badestellen: Strandabschnitte gelb
+      { id: 'beach', type: 'line', source: 'beaches',
+        paint: { 'line-color': '#e8c96a', 'line-opacity': 0.95,
+                 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2, 14, 5] } },
       // Seekartendaten nur in Revier 3D — die Seekarten-Ansicht hat sie nativ
       { id: 'depth-label', type: 'symbol', source: 'depths', minzoom: 12,
         layout: { 'text-field': ['get', 'label'], 'text-font': ['noto'], 'text-size': 11 },
@@ -413,8 +424,8 @@
       const up = sun.el > -3;
       map.setPaintProperty('relief', 'hillshade-illumination-direction',
         up ? ((sun.az % 360) + 360) % 360 : 315);
-      map.setPaintProperty('relief', 'hillshade-highlight-color', up ? '#4b7d9b' : '#22404f');
-      map.setPaintProperty('bg', 'background-color', up ? '#0d1b22' : '#070f14');
+      map.setPaintProperty('relief', 'hillshade-highlight-color', up ? '#4f83a2' : '#33596d');
+      map.setPaintProperty('bg', 'background-color', up ? '#0d1b22' : '#0a141b');
     },
 
     init() {

@@ -83,5 +83,18 @@ fc = {"type": "FeatureCollection", "features": [{
     "type": "Feature", "properties": {"name": "schlei-wasser"},
     "geometry": {"type": "MultiPolygon", "coordinates": polys}}]}
 json.dump(fc, open('water.geojson', 'w'), separators=(',', ':'))
+
+# Land = invertiertes Wasser: grosses Rechteck mit den Aussenringen als
+# Loechern, Inseln wieder als gefuellte Polygone. Als Vektorflaeche ueber
+# dem Tiefenraster ist die Uferlinie bei jedem Zoom exakt (das Raster
+# verschluckt schmale Landformen wie den Damm nach Arnis).
+FRAME = [[9.0, 54.2], [10.6, 54.2], [10.6, 55.1], [9.0, 55.1], [9.0, 54.2]]
+land = [[FRAME, *[poly[0] for poly in polys]]]
+land += [[ring] for poly in polys for ring in poly[1:]]      # Inseln sind Land
+json.dump({"type": "FeatureCollection", "features": [{
+    "type": "Feature", "properties": {"name": "schlei-land"},
+    "geometry": {"type": "MultiPolygon", "coordinates": land}}]},
+    open('land.geojson', 'w'), separators=(',', ':'))
+
 pts = sum(len(r) for p in polys for r in p)
-print(f'{len(polys)} Polygone, {len(inners)} Inseln, {pts} Punkte')
+print(f'{len(polys)} Polygone, {len(inners)} Inseln, {pts} Punkte (+ land.geojson)')
