@@ -25,6 +25,7 @@ cd <scratchpad> && npm install puppeteer-core   # klein, kein Browser-Download
 Puppeteer mit `executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`, `headless: "new"` starten.
 
 - Daten kommen live von PEGELONLINE/Open-Meteo/DWD — `waitUntil: "networkidle2"` plus `waitForFunction` auf das konkrete Feature (z. B. `#wind-time-row` nicht mehr `hidden`).
+- **WebGL (hero3d/MapLibre):** Launch-Args `["--enable-unsafe-swiftshader", "--use-angle=swiftshader"]` — damit rendert MapLibre headless (verifiziert mit Chrome + maplibre-gl 5.24). Fallback-Test mit `["--disable-webgl", "--disable-webgl2"]` → Silhouette bleibt, `#hero3d-controls` bleibt `hidden`. Nach Moduswechsel ~6–8 s auf Kacheln/Terrain warten, dann Screenshot.
 - Mobile-Check: Viewport 390×844, `isMobile: true`; auf horizontalen Overflow prüfen (`scrollWidth > innerWidth`).
 - `?v=__BUILD__`-Query-Strings sind normal (Cache-Busting-Platzhalter, wird beim Deploy ersetzt).
 
