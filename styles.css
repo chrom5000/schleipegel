@@ -457,11 +457,62 @@ a { color: inherit; }
 
 .hero3d-controls button:hover { background: rgba(34, 56, 68, .85); }
 
+/* hero3d-Datenmarker: dunkle Chips, lesbar auf 3D und Seekarte */
+.h3-marker {
+  display: flex; align-items: flex-end; gap: 6px;
+  padding: 5px 8px; border-radius: 9px;
+  background: rgba(13, 27, 34, .82);
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: #f2f7f8; font-family: var(--font-viz); line-height: 1.25;
+  pointer-events: auto; cursor: default;
+}
+
+.h3-marker b { display: block; font-size: 14px; }
+.h3-marker small { display: block; font-size: 10.5px; color: #9fb6c1; }
+
+.h3-latte {
+  width: 7px; height: 34px; border-radius: 3px;
+  background: rgba(255, 255, 255, .14); position: relative; overflow: hidden;
+}
+
+.h3-latte i { position: absolute; bottom: 0; left: 0; right: 0; display: block; }
+
+.h3-wind { display: grid; justify-items: center; pointer-events: auto; }
+.h3-wind svg { filter: drop-shadow(0 0 3px rgba(0, 0, 0, .8)); }
+.h3-vane-shaft { stroke-width: 3.5; stroke-linecap: round; }
+
+.h3-wind b {
+  font-family: var(--font-viz); font-size: 13px;
+  text-shadow: 0 0 4px rgba(0, 0, 0, .9), 0 0 8px rgba(0, 0, 0, .7);
+}
+
+.h3-bw {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid rgba(13, 27, 34, .9); cursor: pointer; padding: 0;
+}
+
+.h3-marker.h3-alert { border-color: var(--st-warn); }
+.h3-marker.h3-alert b { color: var(--st-warn); }
+
+#hero3d .maplibregl-popup-content {
+  background: rgba(13, 27, 34, .95); color: #f2f7f8;
+  font-family: var(--font-viz); font-size: 12.5px; border-radius: 9px;
+}
+
+#hero3d .maplibregl-popup-tip { border-top-color: rgba(13, 27, 34, .95); }
+
+@media (max-width: 700px) {
+  .h3-marker b { font-size: 15px; }
+}
+
 .hero3d-presets { display: none; gap: 6px; }
 :root[data-hero-mode="3d"] .hero3d-presets,
 :root[data-hero-mode="chart"] .hero3d-presets { display: inline-flex; }
 
-@media (max-width: 700px) { .hero3d-controls { max-width: 100%; } }
+@media (max-width: 700px) {
+  .hero3d-controls { max-width: 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .hero3d-controls button { white-space: nowrap; }
+}
 
 .fjord-caption {
   padding: 10px 0 22px;

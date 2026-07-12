@@ -271,6 +271,7 @@ function renderRevierWind() {
 
     layer.appendChild(g);
   }
+  window.HERO3D?.renderData?.();
 }
 
 function bindRevierWind() {
@@ -651,6 +652,7 @@ function renderSunLayer() {
       skyInfo.appendChild(span);
     });
   }
+  window.HERO3D?.renderLight?.();
 }
 
 /* Beleuchtete Mondfläche als Pfad (Halbkreis + Terminator-Halbellipse) */
@@ -1562,6 +1564,7 @@ function renderTiles() {
 
   wrap.appendChild(renderWindTile());
   if (state.marine) wrap.appendChild(renderMarineTile());
+  window.HERO3D?.renderData?.();
 }
 
 /* ── CHART ──────────────────────────────────────────────────── */

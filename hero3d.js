@@ -94,6 +94,7 @@
     const cap = document.querySelector('#hero3d-caption');
     if (cap) cap.hidden = newMode !== 'chart';
     syncModeBtn();
+    HERO3D._pending = null;
   }
 
   function ensureMap() {
@@ -106,17 +107,168 @@
       cooperativeGestures: true, attributionControl: { compact: true },
     });
     map.on('error', (e) => console.warn('hero3d:', e.error?.message ?? e));
+    // Bei Kartendrehung bleiben die Windzahlen aufrecht (Pfeile sind kartenfest)
+    map.on('rotate', () => {
+      if (mode !== 'lite' && typeof state !== 'undefined' && map.loaded()) renderWind();
+    });
     return map;
+  }
+
+  /* ── DATENLAYER (Phase 2): DOM-Marker, überleben setStyle ── */
+
+  const markers = new Map();   // key → maplibregl.Marker
+
+  function upsertMarker(key, lngLat, el, opts = {}) {
+    let mk = markers.get(key);
+    if (!mk) {
+      mk = new maplibregl.Marker({ element: el, ...opts }).setLngLat(lngLat).addTo(map);
+      markers.set(key, mk);
+    } else {
+      mk.setLngLat(lngLat);
+      if (opts.rotation != null) mk.setRotation(opts.rotation);
+    }
+    return mk;
+  }
+
+  function dropMarker(key) {
+    markers.get(key)?.remove();
+    markers.delete(key);
+  }
+
+  function renderPegel() {
+    if (typeof STATIONS === 'undefined') return;
+    for (const st of STATIONS) {
+      const cur = state.current?.[st.id];
+      const key = `pegel:${st.id}`;
+      if (!cur) { dropMarker(key); continue; }
+      const cls = classify(cur.value, st.charVals);
+      const tr = trendInfo(cur.trend ?? 0);
+      const span = st.charVals.MHW - st.charVals.MNW;
+      const p = Math.max(0, Math.min(1, (cur.value - st.charVals.MNW) / span));
+      let el = markers.get(key)?.getElement();
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'h3-marker h3-pegel';
+        el.innerHTML = '<span class="h3-latte"><i></i></span><span class="h3-body"><b></b><small></small></span>';
+      }
+      el.querySelector('b').textContent = `${fmtCm.format(cur.value)} cm ${tr.arrow}`;
+      el.querySelector('small').textContent = `Pegel ${st.name} · ${cls.label}`;
+      const bar = el.querySelector('.h3-latte i');
+      bar.style.height = `${Math.round(p * 100)}%`;
+      bar.style.background = cls.color;
+      el.title = `Pegel ${st.name}: ${fmtCm.format(cur.value)} cm (${cls.label}, ${tr.txt})`;
+      upsertMarker(key, [st.lon, st.lat], el, { anchor: 'bottom' });
+    }
+  }
+
+  const VANE_COLORS = { w1: '#8fc3e0', w2: '#d8ebf4', w3: '#ffd97a', w4: '#ff8f5e' };
+
+  function renderWind() {
+    const rw = state.revierWind;
+    if (!rw) { for (const k of [...markers.keys()]) if (k.startsWith('wind:')) dropMarker(k); return; }
+    const idx = Math.min(state.revierIdx ?? 0, rw.times.length - 1);
+    for (const p of rw.points) {
+      const h = p.hours[idx];
+      const key = `wind:${p.name}`;
+      if (!h || h.ms == null || h.dir == null) { dropMarker(key); continue; }
+      const color = VANE_COLORS[bftClass(h.ms)];
+      let el = markers.get(key)?.getElement();
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'h3-wind';
+        el.innerHTML = `<svg viewBox="-10 -22 20 44" width="26" height="56" aria-hidden="true">
+            <line class="h3-vane-shaft" x1="0" y1="-18" x2="0" y2="12"/>
+            <path class="h3-vane-head" d="M-6,8 L0,20 L6,8 Z"/>
+          </svg><b></b>`;
+      }
+      const val = el.querySelector('b');
+      val.textContent = fmtWind.format(h.ms);
+      val.style.color = color;
+      // Zahl bleibt aufrecht: Pfeil rotiert um dir (kartenfest), also gegenrotieren
+      val.style.transform = `rotate(${map.getBearing() - h.dir}deg)`;
+      el.querySelector('.h3-vane-shaft').style.stroke = color;
+      el.querySelector('.h3-vane-head').style.fill = color;
+      const bft = beaufort(h.ms);
+      el.title = `${p.name}: ${fmtWind.format(h.ms)} m/s (${bft} Bft, ${BFT_NAMES[bft]}) aus ${compassPoint(h.dir)}, Böen ${fmtWind.format(h.gust ?? 0)} m/s${h.temp != null ? `, ${fmtTemp.format(h.temp)} °C` : ''} — ICON-D2`;
+      upsertMarker(key, [p.lon, p.lat], el,
+        { rotationAlignment: 'map', pitchAlignment: 'viewport', rotation: h.dir });
+    }
+  }
+
+  function renderExtra() {
+    // Ostsee vor Schleimünde
+    const mr = state.marine;
+    if (mr) {
+      const key = 'marine:ostsee';
+      let el = markers.get(key)?.getElement();
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'h3-marker h3-marine';
+        el.innerHTML = '<span class="h3-body"><b></b><small>Ostsee · Welle · Wasser</small></span>';
+      }
+      el.querySelector('b').textContent = `${fmtWind.format(mr.wave ?? 0)} m · ${fmtCm.format(mr.sst)} °C`;
+      el.title = `Ostsee vor Schleimünde: Wellenhöhe ${fmtWind.format(mr.wave ?? 0)} m, Wassertemperatur ${fmtCm.format(mr.sst)} °C`;
+      upsertMarker(key, [10.075, 54.685], el, { anchor: 'left' });
+    } else dropMarker('marine:ostsee');
+
+    // Amtliche Warnung als Szene-Marker (Banner oben existiert weiter)
+    if (state.alerts?.length) {
+      const key = 'alert:0';
+      let el = markers.get(key)?.getElement();
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'h3-marker h3-alert';
+        el.innerHTML = '<span class="h3-body"><b>⚠︎ Warnung</b><small></small></span>';
+      }
+      el.querySelector('small').textContent = state.alerts[0].event ?? 'amtliche Warnung';
+      upsertMarker(key, [9.79, 54.60], el, { anchor: 'bottom' });
+    } else dropMarker('alert:0');
+
+    // Badestellen als klickbare Ampel-Punkte mit Popup
+    for (const s of state.badewasser?.spots ?? []) {
+      const key = `bw:${s.name}`;
+      if (markers.has(key)) continue;                      // statisch je Seitenladen
+      const ok = (s.ecoli == null || s.ecoli <= 500) && (s.entero == null || s.entero <= 200);
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'h3-bw';
+      el.style.background = ok ? '#0ca30c' : '#fab219';
+      el.setAttribute('aria-label', `Badestelle ${s.name}`);
+      const detail = s.datum
+        ? `Probe ${new Date(s.datum).toLocaleDateString('de-DE')}: E. coli ${s.ecoli ?? '–'}, Enterokokken ${s.entero ?? '–'} · ${ok ? 'unauffällig' : 'erhöht'}`
+        : 'keine aktuelle Probe';
+      upsertMarker(key, [s.lon, s.lat], el)
+        .setPopup(new maplibregl.Popup({ offset: 10, closeButton: false })
+          .setText(`${s.name} — ${detail}`));
+    }
   }
 
   const HERO3D = {
     ready: false,
 
+    renderData() {
+      if (!map || !map.loaded() || mode === 'lite' || typeof state === 'undefined') return;
+      renderPegel();
+      renderWind();
+      renderExtra();
+    },
+
+    renderLight() {
+      if (!map || !map.loaded() || !map.getLayer('relief')) return;
+      if (typeof sunPosition !== 'function') return;
+      const sun = sunPosition(new Date());
+      const up = sun.el > -3;
+      map.setPaintProperty('relief', 'hillshade-illumination-direction',
+        up ? ((sun.az % 360) + 360) % 360 : 315);
+      map.setPaintProperty('relief', 'hillshade-highlight-color', up ? '#4b7d9b' : '#22404f');
+      map.setPaintProperty('bg', 'background-color', up ? '#0d1b22' : '#070f14');
+    },
+
     init() {
       if (!supported() || typeof maplibregl === 'undefined') { setDom('lite'); return; }
-      let saved = 'lite';
-      try { saved = localStorage.getItem('hero-view') ?? 'lite'; } catch { /* egal */ }
-      if (saved !== 'lite') this.setMode(saved);
+      let saved = null;
+      try { saved = localStorage.getItem('hero-view'); } catch { /* egal */ }
+      this.setMode(saved ?? '3d');                 // Standard: Revier 3D
       HERO3D.ready = true;
       document.querySelector('#hero3d-controls')?.removeAttribute('hidden');
 
@@ -132,7 +284,9 @@
 
     setMode(newMode) {
       if (!['lite', '3d', 'chart'].includes(newMode) || newMode === mode) return;
+      if (this._pending === newMode) return;
       if (newMode === 'lite') { setDom('lite'); return; }
+      this._pending = newMode;
       const m = ensureMap();
       const want3d = newMode === '3d';
       const isChartStyle = !!m.getStyle()?.layers?.some((l) => l.id === 'seekarte');
@@ -143,7 +297,10 @@
         ? { pitch: PRESETS.schlei.pitch, bearing: PRESETS.schlei.bearing, duration: 600 }
         : { pitch: 0, bearing: 0, duration: 600 });
       m.once('idle', () => m.resize());
-      setDom(newMode);
+      // Silhouette steht, bis die Szene wirklich da ist — dann Daten rendern
+      const activate = () => { setDom(newMode); this.renderData(); this.renderLight(); };
+      if (m.loaded()) activate();
+      else m.once('load', activate);
     },
 
     setPreset(name) {
