@@ -12,6 +12,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="styles.css?v=__BUILD__">
+  <link rel="stylesheet" href="vendor/maplibre-gl.css?v=__BUILD__">
+  <script src="vendor/maplibre-gl.js?v=__BUILD__" defer></script>
+  <script src="hero3d.js?v=__BUILD__" defer></script>
 </head>
 <body>
 
@@ -36,6 +39,7 @@
       <!-- Die echte Schlei: Wasserfläche aus OpenStreetMap -->
       <figure class="fjord" aria-label="Karte der Schlei mit aktuellen Pegelwerten, Windvorhersage, Badestellen, Himmelsrichtungen und Sonnenstand">
         <div class="fjord-svg-wrap" id="fjord-wrap">
+          <div id="hero3d" aria-label="3D-Ansicht der Schlei"></div>
           <svg id="fjord-svg" viewBox="-40 -48 1080 828" preserveAspectRatio="xMidYMid meet" role="img">
             <title>Umriss der Schlei mit Pegelstandorten Schleswig und Kappeln</title>
             <defs>
@@ -49,6 +53,16 @@
             <g id="fjord-places" aria-hidden="true"></g>
             <g id="fjord-gauges"></g>
           </svg>
+          <div class="hero3d-controls" id="hero3d-controls" hidden>
+            <button type="button" id="hero3d-mode" aria-label="Ansicht wechseln">Ansicht: Revier 3D</button>
+            <span class="hero3d-presets" role="group" aria-label="Blickpunkte">
+              <button type="button" data-preset="schlei">Ganze Schlei</button>
+              <button type="button" data-preset="innere">Innere</button>
+              <button type="button" data-preset="enge">Enge</button>
+              <button type="button" data-preset="kappeln">Kappeln</button>
+              <button type="button" data-preset="muendung">M&uuml;ndung</button>
+            </span>
+          </div>
           <div class="hero-zoom" role="group" aria-label="Kartenausschnitt zoomen">
             <button type="button" id="zoom-in" aria-label="Hineinzoomen">+</button>
             <button type="button" id="zoom-out" aria-label="Herauszoomen">&minus;</button>
@@ -62,6 +76,10 @@
           <output class="wind-time-label" id="wind-time-label" for="wind-time"></output>
         </div>
         <p class="wind-wx" id="wind-wx" hidden></p>
+        <p class="hero3d-caption" id="hero3d-caption" hidden>
+          Seekarten-Darstellung aus BSH-Open-Data (FreeNauticalChart) —
+          <strong>nicht zur Navigation</strong>.
+        </p>
         <p class="sky-info" id="sky-info"></p>
         <figcaption class="fjord-caption">
           <span class="fjord-bw-legend" id="fjord-bw-legend" hidden>

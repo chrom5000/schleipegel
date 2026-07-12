@@ -430,6 +430,39 @@ a { color: inherit; }
 .fjord-svg-wrap.is-zoomed #fjord-svg { touch-action: none; cursor: grab; }
 .fjord-svg-wrap.is-zoomed #fjord-svg:active { cursor: grabbing; }
 
+/* 3D-Hero: Modus (data-hero-mode) steuert Silhouette vs. MapLibre */
+#hero3d { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .4s; }
+:root[data-hero-mode="3d"] #hero3d,
+:root[data-hero-mode="chart"] #hero3d { opacity: 1; pointer-events: auto; }
+:root[data-hero-mode="3d"] #fjord-svg,
+:root[data-hero-mode="chart"] #fjord-svg,
+:root[data-hero-mode="3d"] #wind-canvas,
+:root[data-hero-mode="chart"] #wind-canvas,
+:root[data-hero-mode="3d"] .hero-zoom,
+:root[data-hero-mode="chart"] .hero-zoom { opacity: 0; pointer-events: none; transition: opacity .4s; }
+
+.hero3d-caption { margin: 0; padding: 6px 2px 0; font-size: 12px; color: #8fa8b4; }
+
+.hero3d-controls {
+  position: absolute; top: 10px; left: 10px;
+  display: flex; flex-wrap: wrap; gap: 6px; max-width: 70%;
+}
+
+.hero3d-controls button {
+  padding: 6px 10px; border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(13, 27, 34, .72); color: #d9e6ec;
+  font-size: 12.5px; cursor: pointer;
+}
+
+.hero3d-controls button:hover { background: rgba(34, 56, 68, .85); }
+
+.hero3d-presets { display: none; gap: 6px; }
+:root[data-hero-mode="3d"] .hero3d-presets,
+:root[data-hero-mode="chart"] .hero3d-presets { display: inline-flex; }
+
+@media (max-width: 700px) { .hero3d-controls { max-width: 100%; } }
+
 .fjord-caption {
   padding: 10px 0 22px;
   font-size: 12px;
