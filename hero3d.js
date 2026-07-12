@@ -21,12 +21,16 @@
 
   const STYLE_3D = {
     version: 8,
+    glyphs: `${new URL('vendor/glyphs/', location.href).href}{fontstack}/{range}.pbf`,
     sources: {
       terrain: { type: 'raster-dem', tiles: [`terrain/{z}/{x}/{y}.png?v=${BUILD}`],
                  encoding: 'terrarium', tileSize: 256, minzoom: 9, maxzoom: 13,
                  bounds: [9.40, 54.40, 10.20, 54.78],
                  attribution: 'Relief: BSH (DL-DE-BY-2.0) · Terrain Tiles' },
       water: { type: 'geojson', data: `water.geojson?v=${BUILD}` },
+      seamarks: { type: 'geojson', data: `seamarks.json?v=${BUILD}`,
+                  attribution: 'Seezeichen: © OSM — nicht zur Navigation' },
+      depths: { type: 'geojson', data: `depths.json?v=${BUILD}` },
     },
     layers: [
       { id: 'bg', type: 'background', paint: { 'background-color': '#0d1b22' } },
@@ -51,6 +55,19 @@
         paint: { 'fill-color': '#2478ad', 'fill-opacity': 0.18 } },
       { id: 'ufer', type: 'line', source: 'water',
         paint: { 'line-color': '#58b7e8', 'line-width': 1.5, 'line-opacity': 0.85 } },
+      // Seekartendaten nur in Revier 3D — die Seekarten-Ansicht hat sie nativ
+      { id: 'depth-label', type: 'symbol', source: 'depths', minzoom: 12,
+        layout: { 'text-field': ['get', 'label'], 'text-font': ['noto'], 'text-size': 11 },
+        paint: { 'text-color': '#9fd3ee', 'text-halo-color': '#0d1b22', 'text-halo-width': 1.2,
+                 'text-opacity': 0.85 } },
+      { id: 'seamark-dot', type: 'circle', source: 'seamarks', minzoom: 10.5,
+        paint: { 'circle-color': ['get', 'colour'],
+                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10.5, 2.5, 14, 6],
+                 'circle-stroke-color': '#0d1b22', 'circle-stroke-width': 1.2 } },
+      { id: 'seamark-name', type: 'symbol', source: 'seamarks', minzoom: 13,
+        layout: { 'text-field': ['get', 'name'], 'text-font': ['noto'], 'text-size': 11,
+                  'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true },
+        paint: { 'text-color': '#d9e6ec', 'text-halo-color': '#0d1b22', 'text-halo-width': 1.4 } },
     ],
     terrain: { source: 'terrain', exaggeration: 2.5 },
   };
@@ -113,6 +130,121 @@
       if (mode !== 'lite' && typeof state !== 'undefined' && map.loaded()) renderWind();
     });
     return map;
+  }
+
+  /* ── WINDPARTIKEL (Phase 3): Canvas-Overlay über der Karte ──
+     Partikel leben im Schirmraum; ihr Ortswind kommt per IDW über die
+     Revierpunkte (wie windTick in app.js), die Schirm-Richtung über
+     project/unproject — damit stimmt die Strömung auch bei Pitch,
+     Drehung und auf der Seekarte. */
+
+  const wind = { canvas: null, ctx: null, parts: [], raf: 0,
+                 field: null, fieldIdx: -1, fieldSrc: null, last: 0 };
+
+  function windField() {
+    if (typeof state === 'undefined') return null;
+    const rw = state.revierWind;
+    if (!rw) return null;
+    const idx = Math.min(state.revierIdx ?? 0, rw.times.length - 1);
+    if (wind.field && wind.fieldIdx === idx && wind.fieldSrc === rw) return wind.field;
+    const pts = [];
+    for (const p of rw.points) {
+      const h = p.hours[idx];
+      if (!h || h.ms == null || h.dir == null) continue;
+      const b = (((h.dir + 180) % 360) * Math.PI) / 180;
+      pts.push({ lon: p.lon, lat: p.lat, ve: Math.sin(b) * h.ms, vn: Math.cos(b) * h.ms });
+    }
+    if (!pts.length) return null;
+    pts.meanMs = pts.reduce((s, f) => s + Math.hypot(f.ve, f.vn), 0) / pts.length;
+    wind.field = pts; wind.fieldIdx = idx; wind.fieldSrc = rw;
+    return pts;
+  }
+
+  function windParticle3(W, H) {
+    return { x: Math.random() * W, y: Math.random() * H,
+             life: Math.random(), dur: 2.2 + Math.random() * 2.5,
+             jitter: 0.6 + Math.random() * 0.8 };
+  }
+
+  function ensureWindCanvas() {
+    if (wind.canvas) return;
+    const c = document.createElement('canvas');
+    c.className = 'h3-windcanvas';
+    c.setAttribute('aria-hidden', 'true');
+    // über dem GL-Canvas, unter den Markern
+    map.getCanvasContainer().insertBefore(c, map.getCanvas().nextSibling);
+    wind.canvas = c;
+    wind.ctx = c.getContext('2d');
+    const resize = () => {
+      const gl = map.getCanvas();
+      c.width = gl.width; c.height = gl.height;
+    };
+    resize();
+    map.on('resize', resize);
+    wind.last = performance.now();
+    wind.raf = requestAnimationFrame(windTick3);
+  }
+
+  function windTick3(now) {
+    wind.raf = requestAnimationFrame(windTick3);
+    const dt = Math.min(0.1, (now - wind.last) / 1000);
+    wind.last = now;
+    const c = wind.canvas, ctx = wind.ctx;
+    if (!c || mode === 'lite' || document.hidden) { ctx?.clearRect(0, 0, c.width, c.height); return; }
+    const field = windField();
+    if (!field) { ctx.clearRect(0, 0, c.width, c.height); return; }
+
+    const W = c.width, H = c.height;
+    const dpr = W / map.getCanvas().clientWidth || 1;
+    const n = Math.max(10, Math.min(110, Math.round(8 + field.meanMs * 9)));
+    while (wind.parts.length < n) wind.parts.push(windParticle3(W, H));
+    if (wind.parts.length > n) wind.parts.length = n;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = 1.4 * dpr;
+    ctx.lineCap = 'round';
+    const margin = 80 * dpr;
+    for (const q of wind.parts) {
+      q.life += dt / q.dur;
+      if (q.life >= 1) Object.assign(q, windParticle3(W, H), { life: 0 });
+
+      const ll = map.unproject([q.x / dpr, q.y / dpr]);
+      // IDW in km-Metrik (ε ≈ 1,5 km glättet die Spitzen)
+      const cosl = Math.cos((ll.lat * Math.PI) / 180);
+      let sw = 0, ae = 0, an = 0;
+      for (const f of field) {
+        const dx = (ll.lng - f.lon) * 111.32 * cosl;
+        const dy = (ll.lat - f.lat) * 110.54;
+        const w = 1 / (dx * dx + dy * dy + 2.25);
+        sw += w; ae += f.ve * w; an += f.vn * w;
+      }
+      ae /= sw; an /= sw;
+      const ms = Math.hypot(ae, an);
+      if (ms < 0.05) continue;
+
+      // Schirm-Richtung des Windes am Ort des Partikels
+      const p1 = map.project([ll.lng, ll.lat]);
+      const p2 = map.project([ll.lng + (ae * 1e-5) / cosl, ll.lat + an * 1e-5]);
+      let dxp = p2.x - p1.x, dyp = p2.y - p1.y;
+      const norm = Math.hypot(dxp, dyp);
+      if (norm < 1e-6) continue;
+      dxp /= norm; dyp /= norm;
+
+      const spd = (22 + ms * 16) * dpr * q.jitter;
+      const len = (12 + ms * 4) * dpr * q.jitter;
+      q.x += dxp * spd * dt;
+      q.y += dyp * spd * dt;
+      if (q.x < -margin) q.x += W + 2 * margin;
+      if (q.x > W + margin) q.x -= W + 2 * margin;
+      if (q.y < -margin) q.y += H + 2 * margin;
+      if (q.y > H + margin) q.y -= H + 2 * margin;
+      const a = Math.sin(q.life * Math.PI) * Math.min(0.5, 0.2 + ms * 0.04);
+      ctx.strokeStyle = `rgba(159, 211, 238, ${a.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(q.x, q.y);
+      ctx.lineTo(q.x - dxp * len, q.y - dyp * len);
+      ctx.stroke();
+    }
   }
 
   /* ── DATENLAYER (Phase 2): DOM-Marker, überleben setStyle ── */
@@ -299,7 +431,7 @@
         : { pitch: 0, bearing: 0, duration: 600 });
       m.once('idle', () => m.resize());
       // Silhouette steht, bis die Szene wirklich da ist — dann Daten rendern
-      const activate = () => { setDom(newMode); this.renderData(); this.renderLight(); };
+      const activate = () => { setDom(newMode); this.renderData(); this.renderLight(); ensureWindCanvas(); };
       if (m.loaded()) activate();
       else m.once('load', activate);
     },
