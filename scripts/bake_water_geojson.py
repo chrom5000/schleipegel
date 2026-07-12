@@ -1,34 +1,87 @@
 #!/usr/bin/env python3
-"""Rueckprojektion der gebackenen Schlei-Wasserflaeche nach Lon/Lat.
+"""Schlei-Wasserflaeche in voller Aufloesung aus OSM (Relation 2340930).
 
-Der SVG-Pfad in schlei-geo.js ist linear (equirektangular) auf die
-viewBox 1000 x 715.6 projiziert — die Umkehrung ist exakt.
-Nur Bake-Zeit; Ausgabe water.geojson wird committet.
+Outer-Ways werden an den Endpunkten zu Ringen zusammengenaeht, Inseln
+(inner) werden Loecher; Douglas-Peucker ~8 m haelt die Datei klein,
+ohne dass Ufer treppig werden. Nur Bake-Zeit (requests noetig);
+Ausgabe water.geojson wird committet.
+
+(Die SVG-Silhouette nutzt weiterhin die staerker vereinfachte
+Geometrie in schlei-geo.js — hier geht es um die MapLibre-Szene.)
 """
-import json, re, sys
+import json, math, sys, requests
 
-BBOX = dict(lon0=9.5439575, lat0=54.4900432, lon1=10.0361676, lat1=54.6941334, w=1000.0, h=715.6)
+REL = 2340930
+TOL_M = 8.0
+sys.setrecursionlimit(100000)
 
-src = open('schlei-geo.js', encoding='utf-8').read()
-path = json.loads(re.search(r'const SCHLEI_GEO = (\{.*\})', src, re.S).group(1).rsplit(';', 1)[0])['path']
-assert not re.search(r'[A-LN-YA-Za-ln-y]', path.replace('M', '').replace('Z', '').replace('z', '')), \
-    'Pfad enthaelt unerwartete SVG-Kommandos'
+q = f'[out:json][timeout:120];relation({REL});out geom;'
+r = requests.post('https://overpass-api.de/api/interpreter', data=q.encode(),
+                  headers={'User-Agent': 'dieschlei.de bake (einkauf@bohillebrand.de)'}, timeout=180)
+r.raise_for_status()
+rel = next(e for e in r.json()['elements'] if e['type'] == 'relation')
 
-def to_lonlat(x, y):
-    lon = BBOX['lon0'] + x / BBOX['w'] * (BBOX['lon1'] - BBOX['lon0'])
-    lat = BBOX['lat1'] - y / BBOX['h'] * (BBOX['lat1'] - BBOX['lat0'])
-    return [round(lon, 6), round(lat, 6)]
+ways = {'outer': [], 'inner': []}
+for m in rel['members']:
+    if m['type'] == 'way' and 'geometry' in m:
+        role = m.get('role') or 'outer'
+        if role in ways:
+            ways[role].append([(p['lon'], p['lat']) for p in m['geometry']])
 
-polys = []
-for sub in filter(None, (s.strip() for s in path.replace('Z', 'z').split('z'))):
-    assert sub.startswith('M'), sub[:20]
-    pts = [to_lonlat(*map(float, p.split(','))) for p in sub[1:].split()]
-    if pts[0] != pts[-1]:
-        pts.append(pts[0])
-    polys.append([pts])
+def stitch(pool):
+    rings = []
+    pool = [w for w in pool if len(w) > 1]
+    while pool:
+        ring = pool.pop(0)
+        while ring[0] != ring[-1]:
+            for i, w in enumerate(pool):
+                if w[0] == ring[-1]:
+                    ring += w[1:]; pool.pop(i); break
+                if w[-1] == ring[-1]:
+                    ring += w[-2::-1]; pool.pop(i); break
+            else:
+                raise SystemExit(f'Ring nicht schliessbar (Rest {len(pool)} Ways)')
+        rings.append(ring)
+    return rings
+
+def simplify(pts, tol):
+    lat0 = math.radians(pts[0][1])
+    kx, ky = 111320 * math.cos(lat0), 110540
+    def simp(a, b):
+        if b - a < 2:
+            return []
+        ax, ay = pts[a]; bx, by = pts[b]
+        dx, dy = (bx - ax) * kx, (by - ay) * ky
+        L = math.hypot(dx, dy) or 1e-9
+        imax, dmax = -1, tol
+        for i in range(a + 1, b):
+            px, py = (pts[i][0] - ax) * kx, (pts[i][1] - ay) * ky
+            d = abs(px * dy - py * dx) / L
+            if d >= dmax:
+                imax, dmax = i, d
+        if imax < 0:
+            return []
+        return simp(a, imax) + [imax] + simp(imax, b)
+    keep = sorted({0, len(pts) - 1, *simp(0, len(pts) - 1)})
+    return [pts[i] for i in keep]
+
+def simplify_ring(pts, tol):
+    # Geschlossener Ring: Start = Ende → Sehne kollabiert. Erst halbieren.
+    mid = len(pts) // 2
+    return simplify(pts[:mid + 1], tol)[:-1] + simplify(pts[mid:], tol)
+
+outers = [simplify_ring(rg, TOL_M) for rg in stitch(ways['outer'])]
+inners = [simplify_ring(rg, TOL_M) for rg in stitch(ways['inner'])]
+outers.sort(key=len, reverse=True)
+
+# Alle Loecher haengen am (einen) grossen Aussenring der Schlei
+polys = [[[[round(x, 6), round(y, 6)] for x, y in ring] for ring in [outers[0], *inners]]]
+for extra in outers[1:]:
+    polys.append([[[round(x, 6), round(y, 6)] for x, y in extra]])
 
 fc = {"type": "FeatureCollection", "features": [{
     "type": "Feature", "properties": {"name": "schlei-wasser"},
     "geometry": {"type": "MultiPolygon", "coordinates": polys}}]}
 json.dump(fc, open('water.geojson', 'w'), separators=(',', ':'))
-print(f'{len(polys)} Polygone, {sum(len(p[0]) for p in polys)} Punkte')
+pts = sum(len(r) for p in polys for r in p)
+print(f'{len(polys)} Polygone, {len(inners)} Inseln, {pts} Punkte')

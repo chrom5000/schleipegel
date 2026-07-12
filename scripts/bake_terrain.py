@@ -12,7 +12,7 @@ wird committet; zur Laufzeit gibt es keine externe Relief-Abhaengigkeit.
 import io, json, math, os
 import numpy as np
 import requests
-from PIL import Image
+from PIL import Image, ImageDraw
 import rasterio
 from rasterio.warp import transform as warp_transform
 
@@ -67,54 +67,44 @@ bathy[bathy >= 0] = np.nan               # nur echte Tiefen uebernehmen
 inv = ~ds.transform                       # E/N (25832) → Pixel
 print(f'  {bathy.shape[1]}x{bathy.shape[0]} px, Abdeckung {(~np.isnan(bathy)).mean():.2f}')
 
+# Wasserpolygon (voll aufgeloest, Inseln als Loecher) — PIL rastert die Maske
+WATER_POLYS = json.load(open('water.geojson'))['features'][0]['geometry']['coordinates']
+
+def rings_mask(w, h, to_px):
+    """Wassermaske: Aussenringe fuellen, Inselringe wieder loeschen."""
+    img = Image.new('L', (w, h), 0)
+    drw = ImageDraw.Draw(img)
+    for poly in WATER_POLYS:
+        for i, ring in enumerate(poly):
+            drw.polygon([to_px(x, y) for x, y in ring], fill=0 if i else 1)
+    return np.asarray(img, dtype=bool)
+
 # Datenluecken INNERHALB der Schlei-Wasserflaeche mit Flachwasser fuellen,
 # sonst liest sich der Mittelabschnitt als Land (BSH deckt nicht alles ab)
 def fill_water_gaps():
-    rings = json.load(open('water.geojson'))['features'][0]['geometry']['coordinates']
     h, w = bathy.shape
-    cols, rows = np.meshgrid(np.arange(w) + 0.5, np.arange(h) + 0.5)
-    es, ns = ds.transform * (cols.ravel(), rows.ravel())
-    lons, lats = warp_transform(ds.crs, 'EPSG:4326', np.asarray(es), np.asarray(ns))
-    lons = np.asarray(lons); lats = np.asarray(lats)
-    inside = np.zeros(lons.shape, bool)
-    for ring in rings:                                    # Crossing-Number-Test
-        xs = np.array([p[0] for p in ring[0]]); ys = np.array([p[1] for p in ring[0]])
-        m = np.zeros(lons.shape, bool)
-        j = len(xs) - 1
-        for i in range(len(xs)):
-            if ys[i] != ys[j]:
-                cond = ((ys[i] > lats) != (ys[j] > lats)) & \
-                       (lons < (xs[j] - xs[i]) * (lats - ys[i]) / (ys[j] - ys[i]) + xs[i])
-                m ^= cond
-            j = i
-        inside |= m
-    inside = inside.reshape(bathy.shape)
+    cache = {}
+    def to_px(lon, lat):
+        if (lon, lat) not in cache:
+            es, ns = warp_transform('EPSG:4326', ds.crs, [lon], [lat])
+            cache[(lon, lat)] = tuple(inv * (es[0], ns[0]))
+        return cache[(lon, lat)]
+    inside = rings_mask(w, h, to_px)
     gaps = inside & np.isnan(bathy)
     bathy[gaps] = FALLBACK_DEPTH
     print(f'  {int(gaps.sum())} Luecken-Pixel in der Schlei mit {FALLBACK_DEPTH} m gefuellt '
           f'(Wasserflaeche jetzt {(~np.isnan(bathy[inside])).mean():.2f} abgedeckt)')
 
+def inside_water(z, x, y, size=256):
+    n = 2 ** z
+    def to_px(lon, lat):
+        xf = ((lon + 180) / 360 * n - x) * size
+        r = math.radians(lat)
+        yf = ((1 - math.log(math.tan(r) + 1 / math.cos(r)) / math.pi) / 2 * n - y) * size
+        return (xf, yf)
+    return rings_mask(size, size, to_px)
+
 fill_water_gaps()
-
-WATER_RINGS = json.load(open('water.geojson'))['features'][0]['geometry']['coordinates']
-
-def inside_water(lons, lats):
-    """Punkt-in-Polygon (Crossing Number), vektorisiert; Ring-Bbox-Vorfilter."""
-    inside = np.zeros(lons.shape, bool)
-    lo0, lo1 = lons.min(), lons.max(); la0, la1 = lats.min(), lats.max()
-    for ring in WATER_RINGS:
-        xs = np.array([p[0] for p in ring[0]]); ys = np.array([p[1] for p in ring[0]])
-        if xs.max() < lo0 or xs.min() > lo1 or ys.max() < la0 or ys.min() > la1:
-            continue
-        m = np.zeros(lons.shape, bool); j = len(xs) - 1
-        for i in range(len(xs)):
-            if ys[i] != ys[j]:
-                cond = ((ys[i] > lats) != (ys[j] > lats)) & \
-                       (lons < (xs[j] - xs[i]) * (lats - ys[i]) / (ys[j] - ys[i]) + xs[i])
-                m ^= cond
-            j = i
-        inside |= m
-    return inside
 
 def bathy_at(lons, lats):
     es, ns = warp_transform('EPSG:4326', ds.crs, lons.ravel(), lats.ravel())
@@ -141,7 +131,7 @@ for z in ZOOMS:
             use = ~np.isnan(depth)
             elev[use] = depth[use]
             # Innerhalb der OSM-Wasserflaeche ist die Schlei garantiert Wasser
-            ins = inside_water(lons, lats)
+            ins = inside_water(z, x, y)
             elev[ins] = np.minimum(elev[ins], MIN_WATER)
             os.makedirs(f'terrain/{z}/{x}', exist_ok=True)
             encode_terrarium(elev).save(f'terrain/{z}/{x}/{y}.png', optimize=True)
