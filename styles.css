@@ -506,9 +506,20 @@ a { color: inherit; }
 }
 
 .h3-bw {
-  width: 13px; height: 13px; border-radius: 50%;
-  border: 2px solid rgba(13, 27, 34, .9); cursor: pointer; padding: 0;
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid #f2f7f8;               /* weißer Ring: Badestelle, keine Tonne */
+  box-shadow: 0 0 0 1px rgba(13, 27, 34, .8);
+  cursor: pointer; padding: 0;
 }
+
+/* MapLibre-Kamerabedienung im Marken-Look */
+#hero3d .maplibregl-ctrl-top-right { z-index: 3; }
+#hero3d .maplibregl-ctrl-group {
+  background: rgba(13, 27, 34, .72);
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 9px;
+}
+#hero3d .maplibregl-ctrl-group button { filter: invert(.85) hue-rotate(180deg); }
 
 .h3-marker.h3-alert { border-color: var(--st-warn); }
 .h3-marker.h3-alert b { color: var(--st-warn); }

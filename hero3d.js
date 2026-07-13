@@ -14,7 +14,7 @@
   const PRESETS = {
     schlei:   { center: [9.79, 54.585], zoom: 10.3, pitch: 55, bearing: 20 },
     innere:   { center: [9.60, 54.520], zoom: 12.0, pitch: 60, bearing: 30 },
-    enge:     { center: [9.665, 54.532], zoom: 13.0, pitch: 60, bearing: 0 },
+    enge:     { center: [9.645, 54.541], zoom: 12.4, pitch: 60, bearing: 0 },   // Stexwig–Missunde
     kappeln:  { center: [9.955, 54.650], zoom: 12.5, pitch: 55, bearing: -20 },
     muendung: { center: [10.03, 54.670], zoom: 13.0, pitch: 55, bearing: -30 },
   };
@@ -90,10 +90,14 @@
         layout: { 'text-field': ['get', 'label'], 'text-font': ['noto'], 'text-size': 11 },
         paint: { 'text-color': '#9fd3ee', 'text-halo-color': '#0d1b22', 'text-halo-width': 1.2,
                  'text-opacity': 0.85 } },
-      { id: 'seamark-dot', type: 'circle', source: 'seamarks', minzoom: 10.5,
-        paint: { 'circle-color': ['get', 'colour'],
-                 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10.5, 2.5, 14, 6],
-                 'circle-stroke-color': '#0d1b22', 'circle-stroke-width': 1.2 } },
+      // Tonnen als Seekarten-Glyphen (■ Backbord, ▲ Steuerbord, ◆ Kardinal,
+      // ✦ Leuchtfeuer) — unterscheidbar von den runden Badestellen-Punkten
+      { id: 'seamark-dot', type: 'symbol', source: 'seamarks', minzoom: 10.5,
+        layout: { 'text-field': ['get', 'glyph'], 'text-font': ['noto'],
+                  'text-size': ['interpolate', ['linear'], ['zoom'], 10.5, 9, 14, 16],
+                  'text-allow-overlap': true },
+        paint: { 'text-color': ['get', 'colour'],
+                 'text-halo-color': '#0d1b22', 'text-halo-width': 1.2 } },
       { id: 'seamark-name', type: 'symbol', source: 'seamarks', minzoom: 13,
         layout: { 'text-field': ['get', 'name'], 'text-font': ['noto'], 'text-size': 11,
                   'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true },
@@ -154,7 +158,11 @@
       maxBounds: MAX_BOUNDS, minZoom: 9, maxZoom: 15.5,
       cooperativeGestures: true, attributionControl: { compact: true },
       antialias: true,
+      dragRotate: true, pitchWithRotate: true, touchPitch: true,
     });
+    // Sichtbare Kamera-Bedienung: Kompass kippt/dreht (Rechtsklick-Ziehen
+    // bzw. Zwei-Finger geht zusätzlich)
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true, showZoom: true }), 'top-right');
     map.on('error', (e) => console.warn('hero3d:', e.error?.message ?? e));
     // Bei Kartendrehung bleiben die Windzahlen aufrecht (Pfeile sind kartenfest)
     map.on('rotate', () => {
@@ -462,9 +470,11 @@
         : { pitch: 0, bearing: 0, duration: 600 });
       m.once('idle', () => m.resize());
       // Silhouette steht, bis die Szene wirklich da ist — dann Daten rendern
+      // 'idle' statt 'load': load feuert nur beim allerersten Stilaufbau —
+      // nach setStyle-Wechseln bliebe der Modus sonst für immer hängen
       const activate = () => { setDom(newMode); this.renderData(); this.renderLight(); ensureWindCanvas(); };
       if (m.loaded()) activate();
-      else m.once('load', activate);
+      else m.once('idle', activate);
     },
 
     setPreset(name) {

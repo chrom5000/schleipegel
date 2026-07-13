@@ -32,6 +32,18 @@ def colour_for(tags):
         return '#d03b3b'
     return '#fab219'                       # cardinal / special_purpose
 
+def glyph_for(tags):
+    """Seekarten-Glyphe: Stumpftonne (Backbord) vs. Spitztonne (Steuerbord)."""
+    kind = tags.get('seamark:type', '')
+    cat = (tags.get(f'seamark:{kind}:category') or '')
+    if kind.startswith('light'):
+        return '✦'
+    if 'lateral' in kind:
+        return '■' if cat == 'port' else '▲' if cat == 'starboard' else '●'
+    if 'cardinal' in kind or 'isolated_danger' in kind:
+        return '◆'
+    return '●'                             # special_purpose
+
 feats = []
 for el in r.json()['elements']:
     tags = el.get('tags', {})
@@ -40,7 +52,7 @@ for el in r.json()['elements']:
     feats.append({
         'type': 'Feature',
         'properties': {'kind': kind, 'name': name, 'colour': colour_for(tags),
-                       'light': kind.startswith('light')},
+                       'glyph': glyph_for(tags), 'light': kind.startswith('light')},
         'geometry': {'type': 'Point', 'coordinates': [round(el['lon'], 6), round(el['lat'], 6)]},
     })
 
