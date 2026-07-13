@@ -209,6 +209,44 @@
     });
   }
 
+  /* Erläuterung je Zeichentyp — was bedeutet das Zeichen für den Segler? */
+  const SM_INFO = {
+    'sm-buoy-port':    ['Stumpftonne · Backbord', 'Fahrwasserbegrenzung: von See kommend an Backbord (links) liegen lassen.'],
+    'sm-buoy-stb':     ['Spitztonne · Steuerbord', 'Fahrwasserbegrenzung: von See kommend an Steuerbord (rechts) liegen lassen.'],
+    'sm-card-n':       ['Kardinaltonne Nord', 'Gefahr liegt südlich der Tonne — nördlich passieren.'],
+    'sm-card-s':       ['Kardinaltonne Süd', 'Gefahr liegt nördlich der Tonne — südlich passieren.'],
+    'sm-card-e':       ['Kardinaltonne Ost', 'Gefahr liegt westlich der Tonne — östlich passieren.'],
+    'sm-card-w':       ['Kardinaltonne West', 'Gefahr liegt östlich der Tonne — westlich passieren.'],
+    'sm-buoy-special': ['Sondertonne', 'Gelbes Zeichen: Sperr- oder Warngebiet, Messstrecke, Regattabahn o. Ä.'],
+    'sm-danger':       ['Einzelgefahrenzeichen', 'Markiert eine einzelne Gefahrenstelle — mit Abstand ringsum passierbar.'],
+    'sm-bcn-port':     ['Bake · Backbord', 'Festes Seezeichen: Fahrwasserbegrenzung, an Backbord liegen lassen.'],
+    'sm-bcn-stb':      ['Bake · Steuerbord', 'Festes Seezeichen: Fahrwasserbegrenzung, an Steuerbord liegen lassen.'],
+    'sm-bcn-special':  ['Bake · Sonderzeichen', 'Festes Zeichen an Land oder im Flachwasser, z. B. Richtbake oder Gebietsgrenze.'],
+    'sm-light':        ['Leuchtfeuer', 'Befeuertes Seezeichen — Molen-, Orientierungs- oder Richtfeuer.'],
+  };
+
+  function bindSeamarkClicks(m) {
+    m.on('click', 'seamark-dot', (e) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const [title, desc] = SM_INFO[f.properties.icon] ?? ['Seezeichen', ''];
+      const box = document.createElement('div');
+      const head = document.createElement('strong');
+      head.textContent = f.properties.name ? `${f.properties.name} — ${title}` : title;
+      const body = document.createElement('p');
+      body.textContent = desc;
+      const src = document.createElement('small');
+      src.textContent = 'Quelle: OSM — nicht zur Navigation';
+      box.append(head, body, src);
+      new maplibregl.Popup({ offset: 14, closeButton: false, maxWidth: '260px' })
+        .setLngLat(f.geometry.coordinates)
+        .setDOMContent(box)
+        .addTo(m);
+    });
+    m.on('mouseenter', 'seamark-dot', () => { m.getCanvas().style.cursor = 'pointer'; });
+    m.on('mouseleave', 'seamark-dot', () => { m.getCanvas().style.cursor = ''; });
+  }
+
   let map = null;
   let mode = 'lite';
 
@@ -255,6 +293,8 @@
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true, showZoom: true }), 'top-right');
     map.on('error', (e) => console.warn('hero3d:', e.error?.message ?? e));
     bindSeamarkIcons(map);
+    bindSeamarkClicks(map);
+    HERO3D._map = map;                     // für Tests/Debugging
     // Bei Kartendrehung bleiben die Windzahlen aufrecht (Pfeile sind kartenfest)
     map.on('rotate', () => {
       if (mode !== 'lite' && typeof state !== 'undefined') renderWind();
