@@ -35,5 +35,14 @@ automatisch über GitHub Actions. Einmalig im Repo aktivieren:
 
 - Wasserstände: [PEGELONLINE](https://www.pegelonline.wsv.de/)-REST-API der
   Wasserstraßen- und Schifffahrtsverwaltung des Bundes (WSV) — Rohdaten ohne Gewähr
-- Karten & Gewässergeometrie: © [OpenStreetMap](https://www.openstreetmap.org/copyright)-Mitwirkende (ODbL)
+- Karten, Gewässergeometrie, Küstenlinie & Seezeichen:
+  © [OpenStreetMap](https://www.openstreetmap.org/copyright)-Mitwirkende (ODbL)
+- Tiefen-/Geländerelief („Revier 3D"): Bathymetrie des
+  [BSH GeoSeaPortal](https://www.geoseaportal.de/) (dl-de/by-2-0,
+  Quelle: Bundesamt für Seeschifffahrt und Hydrographie) und
+  Terrain Tiles (AWS Open Data) — einmalig gebacken (`scripts/bake_terrain.py`)
+- Seekarten-Ansicht: [FreeNauticalChart](https://freenauticalchart.net/)-Kacheln
+  auf Basis wöchentlicher BSH-Open-Data — **nicht zur Navigation**
+- Wind/Wetter: DWD via Bright Sky und Open-Meteo (ICON-D2, Marine)
+- Badegewässerdaten: Land Schleswig-Holstein (dl-de/by-2-0)
 - Enzyklopädie-Inhalte: [Wikipedia „Schlei"](https://de.wikipedia.org/wiki/Schlei) (CC BY-SA 4.0)
