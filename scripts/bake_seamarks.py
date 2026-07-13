@@ -32,64 +32,33 @@ def colour_for(tags):
         return '#d03b3b'
     return '#fab219'                       # cardinal / special_purpose
 
-def glyph_for(tags):
-    """Seekarten-Glyphe: Stumpftonne (Backbord) vs. Spitztonne (Steuerbord)."""
+def icon_for(tags):
+    """Sprite-Name fuer die Seekarten-Symbolik in hero3d."""
     kind = tags.get('seamark:type', '')
     cat = (tags.get(f'seamark:{kind}:category') or '')
     if kind.startswith('light'):
-        return '✦'
-    if 'lateral' in kind:
-        return '■' if cat == 'port' else '▲' if cat == 'starboard' else '●'
-    if 'cardinal' in kind or 'isolated_danger' in kind:
-        return '◆'
-    return '●'                             # special_purpose
-
-# Seezeichen tief im Binnenland (z. B. Richtbaken wie „Grimsnis") verwirren
-# im Segler-Cockpit — alles > 60 m landeinwaerts wird verworfen.
-import math
-land = json.load(open('land.geojson'))['features'][0]['geometry']['coordinates']
-water = json.load(open('water.geojson'))['features'][0]['geometry']['coordinates']
-KX = 111320 * math.cos(math.radians(54.58)); KY = 110540
-
-def inside_mp(mp, lon, lat):
-    ins = False
-    for poly in mp:
-        for ring in poly:                        # even-odd ueber alle Ringe
-            c, j = False, len(ring) - 1
-            for i in range(len(ring)):
-                xi, yi = ring[i]; xj, yj = ring[j]
-                if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / (yj - yi) + xi:
-                    c = not c
-                j = i
-            if c: ins = not ins
-    return ins
-
-def shore_dist(lon, lat):
-    best = 1e12
-    for poly in water:
-        for ring in poly:
-            for a, b in zip(ring, ring[1:]):
-                ax, ay = (a[0] - lon) * KX, (a[1] - lat) * KY
-                bx, by = (b[0] - lon) * KX, (b[1] - lat) * KY
-                dx, dy = bx - ax, by - ay
-                L2 = dx * dx + dy * dy
-                t = 0 if L2 == 0 else max(0, min(1, -(ax * dx + ay * dy) / L2))
-                best = min(best, math.hypot(ax + t * dx, ay + t * dy))
-    return best
+        return 'sm-light'
+    if kind == 'buoy_lateral':
+        return 'sm-buoy-port' if cat == 'port' else 'sm-buoy-stb' if cat == 'starboard' else 'sm-buoy-special'
+    if kind == 'buoy_cardinal':
+        return f'sm-card-{cat[:1]}' if cat[:1] in 'nsew' else 'sm-card-n'
+    if kind == 'buoy_isolated_danger':
+        return 'sm-danger'
+    if kind == 'buoy_special_purpose':
+        return 'sm-buoy-special'
+    if kind == 'beacon_lateral':
+        return 'sm-bcn-port' if cat == 'port' else 'sm-bcn-stb' if cat == 'starboard' else 'sm-bcn-special'
+    return 'sm-bcn-special'                    # beacon_special_purpose
 
 feats = []
-dropped = 0
 for el in r.json()['elements']:
     tags = el.get('tags', {})
-    if inside_mp(land, el['lon'], el['lat']) and shore_dist(el['lon'], el['lat']) > 60:
-        dropped += 1
-        continue
     kind = tags.get('seamark:type', '')
     name = tags.get('seamark:name') or tags.get('name') or ''
     feats.append({
         'type': 'Feature',
         'properties': {'kind': kind, 'name': name, 'colour': colour_for(tags),
-                       'glyph': glyph_for(tags), 'light': kind.startswith('light')},
+                       'icon': icon_for(tags), 'light': kind.startswith('light')},
         'geometry': {'type': 'Point', 'coordinates': [round(el['lon'], 6), round(el['lat'], 6)]},
     })
 
@@ -98,4 +67,4 @@ json.dump({'type': 'FeatureCollection', 'features': feats},
 kinds = {}
 for f in feats:
     kinds[f['properties']['kind']] = kinds.get(f['properties']['kind'], 0) + 1
-print(len(feats), 'Seezeichen:', kinds, f'({dropped} landeinwärts verworfen)')
+print(len(feats), 'Seezeichen:', kinds)

@@ -90,14 +90,11 @@
         layout: { 'text-field': ['get', 'label'], 'text-font': ['noto'], 'text-size': 11 },
         paint: { 'text-color': '#9fd3ee', 'text-halo-color': '#0d1b22', 'text-halo-width': 1.2,
                  'text-opacity': 0.85 } },
-      // Tonnen als Seekarten-Glyphen (■ Backbord, ▲ Steuerbord, ◆ Kardinal,
-      // ✦ Leuchtfeuer) — unterscheidbar von den runden Badestellen-Punkten
+      // Seezeichen mit Seekarten-Symbolik (Sprites via styleimagemissing)
       { id: 'seamark-dot', type: 'symbol', source: 'seamarks', minzoom: 10.5,
-        layout: { 'text-field': ['get', 'glyph'], 'text-font': ['noto'],
-                  'text-size': ['interpolate', ['linear'], ['zoom'], 10.5, 9, 14, 16],
-                  'text-allow-overlap': true },
-        paint: { 'text-color': ['get', 'colour'],
-                 'text-halo-color': '#0d1b22', 'text-halo-width': 1.2 } },
+        layout: { 'icon-image': ['get', 'icon'],
+                  'icon-size': ['interpolate', ['linear'], ['zoom'], 10.5, 0.5, 14, 1],
+                  'icon-anchor': 'bottom', 'icon-allow-overlap': true } },
       { id: 'seamark-name', type: 'symbol', source: 'seamarks', minzoom: 13,
         layout: { 'text-field': ['get', 'name'], 'text-font': ['noto'], 'text-size': 11,
                   'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true },
@@ -118,6 +115,99 @@
       { id: 'seekarte', type: 'raster', source: 'fnc' },
     ],
   };
+
+  /* ── SEEKARTEN-SYMBOLE (IALA) — als Sprites gezeichnet ──
+     Tonnenkörper + Toppzeichen wie auf der Seekarte: ■-Stumpftonne,
+     ▲-Spitztonne, Kardinaltonnen mit Doppelkegeln, Baken als Stange,
+     Leuchtfeuer mit Magenta-Flare. Anker unten = Standort. */
+
+  const SM = {
+    ink: '#0d1b22', halo: 'rgba(242,247,248,.95)',
+    red: '#e0473f', green: '#17b06b', yellow: '#ffcf4d', black: '#20272c', magenta: '#e353c0',
+  };
+
+  function smIcon(id) {
+    const c = document.createElement('canvas');
+    c.width = 44; c.height = 60;
+    const x = c.getContext('2d');
+    x.scale(2, 2);
+    x.lineJoin = 'round'; x.lineCap = 'round';
+
+    const draw = (build, fill) => {
+      x.beginPath(); build();
+      x.strokeStyle = SM.halo; x.lineWidth = 3.2; x.stroke();
+      if (fill) { x.fillStyle = fill; x.fill(); }
+      x.strokeStyle = SM.ink; x.lineWidth = 1; x.stroke();
+    };
+    const waterline = () => draw(() => { x.moveTo(4, 29); x.lineTo(18, 29); });
+    const cone = (cx, cy, up, fill) => draw(() => {
+      x.moveTo(cx, cy + (up ? -3.4 : 3.4));
+      x.lineTo(cx - 3.6, cy + (up ? 3.4 : -3.4));
+      x.lineTo(cx + 3.6, cy + (up ? 3.4 : -3.4));
+      x.closePath();
+    }, fill);
+    const xmark = (cx, cy, fill) => {
+      draw(() => { x.moveTo(cx - 3, cy - 3); x.lineTo(cx + 3, cy + 3); }, null);
+      draw(() => { x.moveTo(cx + 3, cy - 3); x.lineTo(cx - 3, cy + 3); }, null);
+      x.strokeStyle = fill; x.lineWidth = 1.6;
+      x.beginPath(); x.moveTo(cx - 3, cy - 3); x.lineTo(cx + 3, cy + 3);
+      x.moveTo(cx + 3, cy - 3); x.lineTo(cx - 3, cy + 3); x.stroke();
+    };
+    const staff = () => { waterline(); draw(() => { x.moveTo(11, 28.5); x.lineTo(11, 13); }); };
+    const pillar = (bands) => {
+      waterline();
+      draw(() => { x.rect(9, 13, 4, 15.5); }, bands[0]);
+      const h = 15.5 / bands.length;
+      bands.forEach((col, i) => { x.fillStyle = col; x.fillRect(9, 13 + i * h, 4, h); });
+      x.strokeStyle = SM.ink; x.lineWidth = 1; x.strokeRect(9, 13, 4, 15.5);
+    };
+
+    switch (id) {
+      case 'sm-buoy-port':                       // rote Stumpftonne (Zylinder)
+        waterline(); draw(() => x.rect(6.5, 16, 9, 12.5), SM.red); break;
+      case 'sm-buoy-stb':                        // grüne Spitztonne (Kegel)
+        waterline(); draw(() => {
+          x.moveTo(11, 13.5); x.lineTo(5.5, 28.5); x.lineTo(16.5, 28.5); x.closePath();
+        }, SM.green); break;
+      case 'sm-buoy-special':                    // gelb, ✕-Toppzeichen
+        waterline(); draw(() => x.rect(7.5, 18, 7, 10.5), SM.yellow); xmark(11, 13, SM.yellow); break;
+      case 'sm-danger':                          // Einzelgefahr: ●● auf Spiere
+        staff(); draw(() => x.arc(11, 15.5, 2.2, 0, 7), SM.black);
+        draw(() => x.arc(11, 9.5, 2.2, 0, 7), SM.red); break;
+      case 'sm-card-n': pillar([SM.black, SM.yellow]); cone(11, 9, true, SM.black); cone(11, 2.5, true, SM.black); break;
+      case 'sm-card-s': pillar([SM.yellow, SM.black]); cone(11, 9, false, SM.black); cone(11, 2.5, false, SM.black); break;
+      case 'sm-card-e': pillar([SM.black, SM.yellow, SM.black]); cone(11, 2.5, true, SM.black); cone(11, 9, false, SM.black); break;
+      case 'sm-card-w': pillar([SM.yellow, SM.black, SM.yellow]); cone(11, 2.5, false, SM.black); cone(11, 9, true, SM.black); break;
+      case 'sm-bcn-port': staff(); draw(() => x.rect(7.8, 6.5, 6.4, 6.4), SM.red); break;
+      case 'sm-bcn-stb': staff(); cone(11, 9.5, true, SM.green); break;
+      case 'sm-bcn-special': staff(); xmark(11, 9.5, SM.yellow); break;
+      case 'sm-light':                           // Feuer: Stern + Magenta-Flare
+        waterline(); draw(() => {
+          for (let i = 0; i < 5; i++) {
+            const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+            const b = a + Math.PI / 5;
+            x[i ? 'lineTo' : 'moveTo'](11 + 5 * Math.cos(a), 21 + 5 * Math.sin(a));
+            x.lineTo(11 + 2.2 * Math.cos(b), 21 + 2.2 * Math.sin(b));
+          }
+          x.closePath();
+        }, SM.yellow);
+        draw(() => {
+          x.moveTo(14, 17); x.quadraticCurveTo(22, 10, 20, 3);
+          x.quadraticCurveTo(15, 8, 13, 15); x.closePath();
+        }, SM.magenta);
+        break;
+      default: return null;
+    }
+    return x.getImageData(0, 0, 44, 60);
+  }
+
+  function bindSeamarkIcons(m) {
+    m.on('styleimagemissing', (e) => {
+      if (!e.id.startsWith('sm-') || m.hasImage(e.id)) return;
+      const img = smIcon(e.id);
+      if (img) m.addImage(e.id, img, { pixelRatio: 2 });
+    });
+  }
 
   let map = null;
   let mode = 'lite';
@@ -164,9 +254,10 @@
     // bzw. Zwei-Finger geht zusätzlich)
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true, showZoom: true }), 'top-right');
     map.on('error', (e) => console.warn('hero3d:', e.error?.message ?? e));
+    bindSeamarkIcons(map);
     // Bei Kartendrehung bleiben die Windzahlen aufrecht (Pfeile sind kartenfest)
     map.on('rotate', () => {
-      if (mode !== 'lite' && typeof state !== 'undefined' && map.loaded()) renderWind();
+      if (mode !== 'lite' && typeof state !== 'undefined') renderWind();
     });
     return map;
   }
@@ -419,15 +510,18 @@
     ready: false,
 
     renderData() {
-      if (!map || !map.loaded() || mode === 'lite' || typeof state === 'undefined') return;
+      // DOM-Marker brauchen keine fertig geladenen Kacheln — kein loaded()-
+      // Guard, sonst verpuffen die Daten-Hooks während der Ladephase und
+      // der nächste kommt erst mit dem 5-Minuten-Intervall
+      if (!map || mode === 'lite' || typeof state === 'undefined') return;
       renderPegel();
       renderWind();
       renderExtra();
     },
 
     renderLight() {
-      if (!map || !map.loaded() || !map.getLayer('relief')) return;
-      if (typeof sunPosition !== 'function') return;
+      if (!map || typeof sunPosition !== 'function') return;
+      try { if (!map.getLayer('relief')) return; } catch { return; }
       const sun = sunPosition(new Date());
       const up = sun.el > -3;
       map.setPaintProperty('relief', 'hillshade-illumination-direction',
