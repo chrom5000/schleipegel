@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Einkehr — Schlei-Infocenter</title>
+  <meta name="description" content="Restaurants, Cafés, Unterkünfte, Camping und Häfen rund um die Schlei — freies OSM-Verzeichnis mit Karte und direkten Links zu Bewertungen bei Google und Booking.">
+  <meta name="theme-color" content="#0d1b22">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230d1b22'/%3E%3Cpath d='M16 6l9 8h-3v10h-4v-6h-4v6h-4V14H7z' fill='%23ffb057'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="vendor/maplibre-gl.css?v=__BUILD__">
+  <link rel="stylesheet" href="einkehr.css?v=__BUILD__">
+  <script src="vendor/maplibre-gl.js?v=__BUILD__" defer></script>
+  <script src="einkehr.js?v=__BUILD__" defer></script>
+</head>
+<body>
+
+  <header class="ek-top">
+    <a class="ek-brand" href="index.html" title="Zurück zum Schlei-Infocenter">
+      <span class="ek-brand-arrow" aria-hidden="true">←</span>
+      <span class="ek-brand-name">die<b>schlei</b>.de</span>
+    </a>
+    <h1 class="ek-title">Ein<span>kehr</span></h1>
+    <nav class="site-tabs" aria-label="Bereiche">
+      <a href="index.html">Infocenter</a>
+      <a href="regatta.html">&#9873; Regatta</a>
+      <a href="angeln.html">&#10547; Bei&szlig;fenster</a>
+      <a href="einkehr.html" aria-current="page">&#8962; Einkehr</a>
+    </nav>
+    <button id="btn-info" class="ek-btn ek-btn-round" title="Über dieses Verzeichnis" aria-label="Informationen">i</button>
+  </header>
+
+  <div class="ek-layout">
+    <aside class="ek-liste" id="panel-liste" aria-label="Ortsliste">
+      <div class="ek-suchzeile">
+        <input type="search" id="suche" placeholder="Name, Ort oder Küche suchen …"
+               autocomplete="off" aria-label="Verzeichnis durchsuchen">
+      </div>
+      <div class="ek-chips" id="chips" role="group" aria-label="Kategorie filtern"></div>
+      <p class="ek-count" id="count">Verzeichnis wird geladen …</p>
+      <ol class="ek-cards" id="cards"></ol>
+      <p class="ek-fuss">Daten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende —
+        ohne Gewähr auf Vollständigkeit und Aktualität. Bewertungen extern bei Google bzw. Booking.</p>
+    </aside>
+    <div id="map" aria-label="Karte der Orte rund um die Schlei"></div>
+  </div>
+
+  <button class="ek-flip" id="btn-flip" aria-label="Zwischen Liste und Karte wechseln">Karte</button>
+
+  <p class="ek-pick-hinweis" id="pick-hinweis" hidden aria-live="polite">
+    👆 Tippe den <b>Startpunkt</b> auf der Karte an <small>(Esc bricht ab)</small></p>
+
+  <!-- Routen-Panel (erscheint bei „Route hierher") -->
+  <section class="ek-route" id="route-panel" hidden aria-label="Routenplanung">
+    <header class="ek-route-kopf">
+      <h2>Route zu <b id="route-ziel"></b></h2>
+      <button id="route-zu" class="ek-route-x" aria-label="Route schließen">✕</button>
+    </header>
+    <div class="ek-route-startwahl">
+      <button id="route-standort" class="ek-akt">📍 Mein Standort</button>
+      <button id="route-pick" class="ek-akt">Start auf Karte tippen</button>
+    </div>
+    <div class="ek-route-profile" id="route-profile" role="radiogroup" aria-label="Verkehrsmittel"></div>
+    <p class="ek-route-status" id="route-status">Startpunkt wählen — per Standort oder Tipp auf die Karte.</p>
+    <div class="ek-route-erg" id="route-erg" hidden>
+      <p class="ek-route-summe" id="route-summe"></p>
+      <details class="ek-route-details">
+        <summary>Wegbeschreibung</summary>
+        <ol id="route-schritte"></ol>
+      </details>
+      <a class="ek-akt ek-akt-google" id="route-google" target="_blank" rel="noopener">Route in Google Maps</a>
+    </div>
+  </section>
+
+  <dialog id="dlg-info" aria-labelledby="dlg-title">
+    <h2 id="dlg-title">Über das Einkehr-Verzeichnis</h2>
+    <p>Alle Einträge stammen aus <strong>OpenStreetMap</strong> — dem freien Karten-Datenbestand,
+    den auch die Schlei-Karte dieser Seite nutzt. Gezeigt wird, was dort mit Name erfasst ist:
+    Restaurants, Cafés &amp; Eis, Imbisse &amp; Kneipen, Unterkünfte, Camping- und Wohnmobilplätze
+    sowie Häfen im Umkreis von 3&nbsp;km um die Schlei.</p>
+    <p><strong>Bewertungen zeigen wir bewusst nicht selbst</strong> — Google und Booking erlauben
+    das ohne kostenpflichtige Schnittstellen nicht. Stattdessen führt jeder Eintrag mit einem
+    Klick direkt zu den Bewertungen bei Google bzw. zur Unterkunft bei Booking.</p>
+    <p>Ein Ort fehlt oder stimmt nicht? Das lässt sich von jedem direkt in
+    <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a>
+    korrigieren — beim nächsten Daten-Backen ist es dann auch hier.</p>
+    <p class="ek-dlg-src">Daten © OpenStreetMap-Mitwirkende (ODbL) · Relief: BSH (DL-DE-BY-2.0) · Terrain Tiles</p>
+    <form method="dialog"><button class="ek-btn">Verstanden</button></form>
+  </dialog>
+
+</body>
+</html>
