@@ -80,7 +80,9 @@ Mobil: Liste im Vollbild, schwebender Karte/Liste-Umschalter (nach dem Umschalte
 ~7,7 MB roh / ~1,4 MB gzip, lazy nach erstem `idle`) trägt Kartendarstellung UND
 Routing-Graph — Stützpunkte deshalb NIE ausdünnen (Kreuzungen = gemeinsame
 Koordinaten, Adjazenz baut der Client). A* mit Profilen Auto/Rad/Fuß
-(m/s je Klassenindex, Einbahnen nur fürs Auto), Wegbeschreibung aus
+(m/s je Klassenindex, Einbahnen nur fürs Auto), Start/Ziel snappen per Union-Find
+auf die **größte Zusammenhangskomponente je Profil** (sonst landet ein Auto-Ziel auf
+einer Insel hinter der Fußgängerzone und A* findet nie einen Weg), Wegbeschreibung aus
 Namenswechseln; Klassenindex in bake_wege.py und `KLASSE_LABEL`/`PROFILE`
 in einkehr.js müssen zusammenpassen. Start außerhalb der Graph-Bbox →
 Google-Maps-Fallback-Link. `orte_labels.json` = Ortsnamen-Layer.

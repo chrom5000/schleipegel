@@ -181,23 +181,51 @@
         a = b;
       }
     }
-    graph = { xs, ys, adj, namen };
+    graph = { xs, ys, adj, namen, comp: {}, haupt: {} };
+    /* Zusammenhangskomponenten je Profil (Union-Find): Start/Ziel
+       dürfen nur aufs Hauptnetz snappen — sonst landet z. B. ein
+       Auto-Ziel auf einer Parkplatz-Zufahrt hinter der Fußgänger-
+       zone (Insel im Graphen) und A* findet nie einen Weg. */
+    for (const [pid, pr] of Object.entries(PROFILE)) {
+      const parent = new Int32Array(xs.length);
+      for (let i = 0; i < parent.length; i++) parent[i] = i;
+      const find = (i) => {
+        while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+        return i;
+      };
+      for (let a = 0; a < adj.length; a++) {
+        const e = adj[a];
+        for (let j = 0; j < e.length; j += 5) {
+          if (pr.v[e[j + 2]] > 0) {
+            const ra = find(a), rb = find(e[j]);
+            if (ra !== rb) parent[rb] = ra;
+          }
+        }
+      }
+      const groesse = new Map();
+      const root = new Int32Array(xs.length);
+      for (let i = 0; i < xs.length; i++) {
+        root[i] = find(i);
+        groesse.set(root[i], (groesse.get(root[i]) ?? 0) + 1);
+      }
+      let haupt = -1, hn = -1;
+      for (const [r, n2] of groesse) if (n2 > hn) { hn = n2; haupt = r; }
+      graph.comp[pid] = root;
+      graph.haupt[pid] = haupt;
+    }
     return graph;
   }
 
-  function nahKnoten(lon, lat, v) {
-    const { xs, ys, adj } = graph;
+  function nahKnoten(lon, lat, pid) {
+    const { xs, ys } = graph;
+    const comp = graph.comp[pid], haupt = graph.haupt[pid];
     const ml = 111320 * Math.cos(lat * Math.PI / 180);
     let best = -1, bd = Infinity;
     for (let i = 0; i < xs.length; i++) {
+      if (comp[i] !== haupt) continue;
       const dx = (xs[i] - lon) * ml, dy = (ys[i] - lat) * 110540;
       const d = dx * dx + dy * dy;
-      if (d < bd) {
-        const a = adj[i];
-        let ok = false;
-        for (let j = 0; j < a.length; j += 5) if (v[a[j + 2]] > 0) { ok = true; break; }
-        if (ok) { bd = d; best = i; }
-      }
+      if (d < bd) { bd = d; best = i; }
     }
     return best;
   }
@@ -335,8 +363,8 @@
     await ladeGraph();
     await new Promise((r) => setTimeout(r, 30));   // Status erst rendern lassen
     const v = PROFILE[route.profil].v;
-    const a = nahKnoten(route.start[0], route.start[1], v);
-    const b = nahKnoten(zielCo[0], zielCo[1], v);
+    const a = nahKnoten(route.start[0], route.start[1], route.profil);
+    const b = nahKnoten(zielCo[0], zielCo[1], route.profil);
     const weg = a >= 0 && b >= 0 ? astar(a, b, v, route.profil === 'auto') : null;
     if (!weg) {
       status.innerHTML = `Keine Verbindung im Wegenetz gefunden — 
