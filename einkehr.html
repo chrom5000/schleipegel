@@ -26,6 +26,18 @@
   <link rel="stylesheet" href="einkehr.css?v=__BUILD__">
   <script src="vendor/maplibre-gl.js?v=__BUILD__" defer></script>
   <script src="einkehr.js?v=__BUILD__" defer></script>
+  <script>
+    // Cookielose Reichweitenmessung (GoatCounter): keine Cookies, keine
+    // IP-Speicherung, respektiert "Do Not Track" — und zählt nur auf der
+    // Live-Domain, damit Vorschau und Tests die Statistik nicht verzerren.
+    if (location.hostname === 'dieschlei.de') {
+      const gc = document.createElement('script');
+      gc.async = true;
+      gc.dataset.goatcounter = 'https://mbohillebrand.goatcounter.com/count';
+      gc.src = 'https://gc.zgo.at/count.js';
+      document.head.appendChild(gc);
+    }
+  </script>
 </head>
 <body>
 

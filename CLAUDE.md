@@ -89,6 +89,14 @@ Namenswechseln; Klassenindex in bake_wege.py und `KLASSE_LABEL`/`PROFILE`
 in einkehr.js müssen zusammenpassen. Start außerhalb der Graph-Bbox →
 Google-Maps-Fallback-Link. `orte_labels.json` = Ortsnamen-Layer.
 
+## Reichweitenmessung
+
+GoatCounter (cookielos, keine IP-Speicherung) auf allen vier Seiten — das Snippet
+injiziert das Script **nur bei `location.hostname === 'dieschlei.de'`**, damit
+LAN-Vorschau und Headless-Tests die Statistik nicht verzerren. Dashboard:
+mbohillebrand.goatcounter.com. Datenschutz-Absatz steht im Impressum (index.html);
+bei neuen Seiten Snippet mitnehmen.
+
 ## Mobile
 
 SVG-Texte skalieren mit der Karte und wären auf Telefonbreite unlesbar. Muster: `@media (max-width: 700px)` in `styles.css` hebt Schriftgrößen/Geometrie an (SVG-Attribute wie `r` per CSS), und Renderer fragen `matchMedia('(max-width: 700px)')` für Anker, Abstände und Größenfaktoren ab. Der Resize-Handler in `bindControls()` rendert betroffene Renderer nach. Neue Hero-Beschriftungen brauchen beide Seiten dieses Musters.

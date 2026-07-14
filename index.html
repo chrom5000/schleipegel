@@ -27,6 +27,18 @@
   <link rel="stylesheet" href="vendor/maplibre-gl.css?v=__BUILD__">
   <script src="vendor/maplibre-gl.js?v=__BUILD__" defer></script>
   <script src="hero3d.js?v=__BUILD__" defer></script>
+  <script>
+    // Cookielose Reichweitenmessung (GoatCounter): keine Cookies, keine
+    // IP-Speicherung, respektiert "Do Not Track" — und zählt nur auf der
+    // Live-Domain, damit Vorschau und Tests die Statistik nicht verzerren.
+    if (location.hostname === 'dieschlei.de') {
+      const gc = document.createElement('script');
+      gc.async = true;
+      gc.dataset.goatcounter = 'https://mbohillebrand.goatcounter.com/count';
+      gc.src = 'https://gc.zgo.at/count.js';
+      document.head.appendChild(gc);
+    }
+  </script>
 </head>
 <body>
 
@@ -243,6 +255,10 @@
 
       <div class="imprint" id="impressum">
         <h2 class="imprint-title">Impressum</h2>
+        <p class="imprint-privacy">Reichweitenmessung: Diese Seite zählt Aufrufe cookielos mit
+          <a href="https://www.goatcounter.com/" target="_blank" rel="noopener">GoatCounter</a> —
+          ohne Cookies, ohne Speicherung von IP-Adressen und unter Beachtung von „Do Not Track".
+          Es werden keine personenbezogenen Daten erhoben.</p>
         <p>Angaben gemäß §&nbsp;5 DDG:<br>
           M. Bo Hillebrand · Lange Str. 75 · 24399 Arnis<br>
           E-Mail: <a id="imprint-mail" href="#">wird geladen …</a> ·
