@@ -20,6 +20,11 @@ und Sonnenlauf — eine statische Website ohne Build-Schritt.
   Bootsklasse (Folkeboot, H-Boot, J/70, Pirat, Conger, ILCA 7, Europe, Opti,
   Fahrtenkreuzer — Näherungspolaren, DSV-Yardstick-kalibriert), animierte Abfahrt
   der Route, GPX-Export und teilbare Kurs-Links — nicht zur Navigation
+- **Beißfenster** (`angeln.html`): Angel-Fenster je Zielfischart (Hering, Hornhecht,
+  Meerforelle, Zander, Barsch, Hecht, Aal, Plattfisch) für die nächsten 48 h —
+  Heuristik aus Saison, Wassertemperatur, Licht, Wind, Luftdruck, Pegel-Einstrom
+  und Mondphase, mit offengelegten Faktoren. Ohne Rechtsangaben: Schonzeiten,
+  Mindestmaße und örtliche Regeln sind selbst zu recherchieren
 - Hell-/Dunkelmodus nach Systemeinstellung, responsiv, `prefers-reduced-motion` wird respektiert
 
 ## Lokal starten

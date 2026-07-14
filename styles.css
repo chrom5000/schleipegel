@@ -484,6 +484,8 @@ a { color: inherit; }
   font-size: 12.5px; text-decoration: none; white-space: nowrap;
 }
 .hero3d-regatta:hover { background: rgba(56, 41, 20, .85); }
+.hero3d-angeln { border-color: rgba(127, 212, 168, .45); color: #7fd4a8; }
+.hero3d-angeln:hover { background: rgba(21, 51, 38, .85); }
 
 /* hero3d-Datenmarker: dunkle Chips, lesbar auf 3D und Seekarte */
 .h3-marker {

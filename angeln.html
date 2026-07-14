@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Beißfenster — Schlei-Infocenter</title>
+  <meta name="description" content="Beißfenster für die Schlei: Wann lohnt sich welcher Zielfisch? Heuristik aus Saison, Wassertemperatur, Licht, Wind, Luftdruck, Pegel-Einstrom und Mondphase — nächste 48 Stunden.">
+  <meta name="theme-color" content="#0d1b22">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230d1b22'/%3E%3Cpath d='M7 16c3-4 8-6 12-4l6-4v16l-6-4c-4 2-9 0-12-4z' fill='%2345b1e2'/%3E%3Ccircle cx='12' cy='15' r='1.5' fill='%230d1b22'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="angeln.css?v=__BUILD__">
+  <script src="angeln.js?v=__BUILD__" defer></script>
+</head>
+<body>
+
+  <header class="bf-top">
+    <a class="bf-brand" href="index.html" title="Zurück zum Schlei-Infocenter">
+      <span class="bf-brand-arrow" aria-hidden="true">←</span>
+      <span class="bf-brand-name">die<b>schlei</b>.de</span>
+    </a>
+    <h1 class="bf-title">Beiß<span>fenster</span></h1>
+    <button id="btn-info" class="bf-btn bf-btn-round" title="Wie wird gerechnet?" aria-label="Informationen">i</button>
+  </header>
+
+  <main class="bf-main">
+    <p class="bf-lead">Wann lohnt sich welcher Fisch an der Schlei? Die nächsten 48&nbsp;Stunden,
+      gerechnet aus Saison, Wassertemperatur, Licht, Wind, Luftdruck, Pegel und Mond —
+      <button class="bf-linklike" id="lead-info">so funktioniert’s</button>.</p>
+
+    <section class="bf-now" id="now-strip" aria-label="Aktuelle Bedingungen"></section>
+
+    <p class="bf-loading" id="loading">Bedingungen werden geladen …</p>
+    <section class="bf-cards" id="cards" aria-label="Zielfische"></section>
+  </main>
+
+  <p class="bf-disclaimer">Heuristik, keine Fanggarantie — <strong>Schonzeiten, Mindestmaße
+    &amp; örtliche Regeln bitte selbst recherchieren.</strong></p>
+
+  <dialog id="dlg-info" aria-labelledby="dlg-title">
+    <h2 id="dlg-title">Wie das Beißfenster gerechnet wird</h2>
+    <p>Je Art wird ein Fenster-Wert (0–100&nbsp;%) für jede der nächsten 48&nbsp;Stunden
+    gebildet: <strong>Saisonkurve</strong> (wann die Art in der Schlei präsent ist) ×
+    <strong>Wassertemperatur-Fenster</strong> (Ostsee vor Schleimünde als Näherung) ×
+    <strong>Licht</strong> (Dämmerung/Nacht/Tag je nach Art, Bewölkung eingerechnet) ×
+    <strong>Wind</strong> × <strong>Luftdruck-Stabilität</strong>, dazu Boni für
+    <strong>Einstrom</strong> (steigender Pegel bringt Ostseewasser — und Fisch — in die
+    Schlei) und die <strong>Mondphase</strong> (dunkle Nächte für Aal).</p>
+    <p>Das ist eine <strong>Heuristik aus dokumentierten Verhaltensmustern</strong> —
+    es gibt keine öffentliche Fangstatistik für die Schlei, an der man sie kalibrieren
+    könnte. Deshalb zeigt jede Karte die Faktoren einzeln: du siehst, <em>warum</em> ein
+    Fenster gut oder schlecht bewertet ist, und kannst selbst anders gewichten.</p>
+    <p class="bf-dlg-warn"><strong>Keine Rechtsauskunft:</strong> Dieses Werkzeug nennt
+    bewusst keine Schonzeiten, Mindestmaße, Entnahmefenster oder Erlaubnispflichten.
+    Bitte informiere dich vor dem Angeln selbst über die aktuell geltenden Regeln für
+    Schlei und Ostsee — verbindlich sind allein die amtlichen Veröffentlichungen des
+    Landes Schleswig-Holstein.</p>
+    <p class="bf-dlg-src">Daten: DWD/Open-Meteo (ICON-D2 &amp; Marine) · PEGELONLINE (WSV) ·
+    Sonnen- und Mondrechnung clientseitig.</p>
+    <form method="dialog"><button class="bf-btn">Verstanden</button></form>
+  </dialog>
+
+</body>
+</html>

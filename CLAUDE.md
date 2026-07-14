@@ -44,6 +44,16 @@ Revierpunkten, zeitlich linear + räumlich IDW interpoliert. Der Deploy-Workflow
 `__BUILD__` in `index.html` **und** `regatta.html` — neue HTML-Seiten dort in den
 sed-Aufruf aufnehmen.
 
+## Beißfenster (`angeln.html` + `angeln.js` + `angeln.css`)
+
+Kartenlose Werkzeug-Seite (kein MapLibre): Angel-Fenster je Zielfischart für 48 h.
+Score = Saisonkurve × Temperaturfenster (Ostsee-SST als Proxy) × Licht (SunCalc-Kern
+clientseitig) × Wind × Druckstabilität, Boni für Einstrom (PEGELONLINE Kappeln,
+Pegel-Trend cm/h) und Mondphase. Artenprofile im `ARTEN`-Array (Verhaltensmuster,
+keine Rechtsangaben!). **Bewusst ohne Schonzeiten/Mindestmaße** — stattdessen
+Selbst-recherchieren-Hinweis an drei Stellen (Chip, Dialog, Startseiten-Footer);
+das muss bei Änderungen erhalten bleiben. Debug-Handle: `window.BEISS`.
+
 ## Mobile
 
 SVG-Texte skalieren mit der Karte und wären auf Telefonbreite unlesbar. Muster: `@media (max-width: 700px)` in `styles.css` hebt Schriftgrößen/Geometrie an (SVG-Attribute wie `r` per CSS), und Renderer fragen `matchMedia('(max-width: 700px)')` für Anker, Abstände und Größenfaktoren ab. Der Resize-Handler in `bindControls()` rendert betroffene Renderer nach. Neue Hero-Beschriftungen brauchen beide Seiten dieses Musters.

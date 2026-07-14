@@ -44,3 +44,10 @@ Achtung: `page.goto` auf dieselbe URL mit anderem Hash ist eine Same-Document-Na
 `REGATTA._map.project([lon,lat])` legen — der Planer lehnt Klicks auf Land mit Toast ab
 (Testpunkt vorher gegen `land.geojson` prüfen). Regression: `verify-regatta.js` +
 `verify-regatta-nowebgl.js` im Scratchpad.
+
+## Beißfenster (angeln.html)
+
+Kartenlose Seite, kein WebGL nötig. Debug-Handle: `window.BEISS = { daten, score, ARTEN }`
+(auf Bereitschaft warten via `waitForFunction(() => window.BEISS)`). Plausibilitäts-Anker:
+Sonnenzeiten müssen zur Jahreszeit passen; Juli → Aal top + Neumond-Bonus, Hering/
+Meerforelle/Hornhecht „aus Saison". Regression: `verify-angeln.js` im Scratchpad.
