@@ -1190,10 +1190,47 @@ ${trk}
     (state.sim?.track ?? []).forEach((pt) => bb.extend(pt.pos));
     map.fitBounds(bb, { padding: 70, duration: 0, pitch: 0, bearing: 0 });
     await new Promise((res) => { map.once('idle', res); setTimeout(res, 8000); });
+
+    /* Druckpalette: heller Grund statt Marken-Dunkel — Papier dankt.
+       Originalwerte merken und nach der Aufnahme zurückstellen. */
+    const DRUCK = [
+      ['bg', 'paint', 'background-color', '#ffffff'],
+      ['relief-farbe', 'layout', 'visibility', 'none'],
+      ['relief', 'layout', 'visibility', 'none'],
+      ['ufer-glow', 'layout', 'visibility', 'none'],
+      ['land', 'paint', 'fill-color', '#eef1f2'],
+      ['wasser', 'paint', 'fill-color', '#d6e9f6'],
+      ['wasser', 'paint', 'fill-opacity', 1],
+      ['ufer', 'paint', 'line-color', '#4a7d95'],
+      ['depth-label', 'paint', 'text-color', '#39708c'],
+      ['depth-label', 'paint', 'text-halo-color', '#ffffff'],
+      ['seamark-name', 'paint', 'text-color', '#243640'],
+      ['seamark-name', 'paint', 'text-halo-color', '#ffffff'],
+      ['laylines-line', 'paint', 'line-color', '#1e8a5a'],
+      ['course-glow', 'paint', 'line-opacity', 0],
+      ['course-line', 'paint', 'line-color', '#d97b00'],
+      ['track-line', 'paint', 'line-color', ['match', ['get', 'mode'],
+        'kreuz', '#0b7a43', 'vorwindkreuz', '#8b3fd9', 'vorwind', '#8b3fd9',
+        'raum', '#0e7490', '#31485a']],
+    ];
+    const zurueck = [];
+    for (const [layer, art, prop, wert] of DRUCK) {
+      if (!map.getLayer(layer)) continue;
+      const orig = art === 'paint' ? map.getPaintProperty(layer, prop)
+                                   : map.getLayoutProperty(layer, prop);
+      zurueck.push([layer, art, prop, orig]);
+      if (art === 'paint') map.setPaintProperty(layer, prop, wert);
+      else map.setLayoutProperty(layer, prop, wert);
+    }
+    await new Promise((res) => { map.once('idle', res); setTimeout(res, 3000); });
     const roh = await new Promise((res) => {
       map.once('render', () => res(map.getCanvas().toDataURL()));
       map.triggerRepaint();
     });
+    for (const [layer, art, prop, orig] of zurueck) {
+      if (art === 'paint') map.setPaintProperty(layer, prop, orig);
+      else map.setLayoutProperty(layer, prop, orig ?? 'visible');
+    }
 
     const gl = map.getCanvas();
     const cv = document.createElement('canvas');
