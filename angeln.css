@@ -57,6 +57,20 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .bf-btn:active { scale: .96; }
 .bf-btn-round { width: 32px; height: 32px; padding: 0; font-family: var(--font-d); font-style: italic; }
 
+/* Bereichs-Tabs (Infocenter · Regatta · Beißfenster) */
+.site-tabs {
+  display: flex; gap: 4px; padding: 4px;
+  background: var(--glass); border: 1px solid var(--line); border-radius: 999px;
+}
+.site-tabs a {
+  padding: 6px 13px; border-radius: 999px;
+  font-size: .78rem; font-weight: 550; white-space: nowrap;
+  color: var(--ink-dim); text-decoration: none;
+  transition: background .2s, color .2s;
+}
+.site-tabs a:hover { color: var(--ink); background: rgba(69, 177, 226, .16); }
+.site-tabs a[aria-current="page"] { background: var(--fisch); color: #10261a; font-weight: 650; }
+
 /* ── Inhalt ────────────────────────────────────────────────── */
 .bf-main { max-width: 1060px; margin: 0 auto; padding: 6px 22px 90px; }
 .bf-lead { color: var(--ink-dim); font-size: .92rem; line-height: 1.55; max-width: 620px; margin-bottom: 18px; }
@@ -150,6 +164,9 @@ dialog form { text-align: right; margin-top: 14px; }
 }
 
 @media (max-width: 700px) {
+  .bf-top { flex-wrap: wrap; row-gap: 8px; }
+  .site-tabs { order: 10; width: 100%; }
+  .site-tabs a { flex: 1; text-align: center; padding: 7px 4px; font-size: .74rem; }
   .bf-brand-name { display: none; }
   .bf-main { padding: 4px 14px 104px; }
   .bf-now { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
