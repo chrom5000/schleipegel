@@ -14,6 +14,12 @@ und Sonnenlauf — eine statische Website ohne Build-Schritt.
 - Wind-Kachel (Kompassrose, Beaufort), Ostsee-Kachel (Wassertemperatur/Wellenhöhe vor Schleimünde)
 - Badewasserqualität aller Schlei-Badestellen auf der Karte (Open Data SH, täglich per GitHub-Actions-Cron aktualisiert)
 - Leaflet-Karte (OSM) und Wikipedia-Kurzporträt der Schlei
+- **Regattaplaner** (`regatta.html`): Strecke von Tonne zu Tonne legen, mit der
+  ICON-D2-Windvorhersage durchrechnen — Schenkelklassifikation (Kreuz/Raum/Vorwind),
+  simulierte Wendeschläge innerhalb der Uferlinie, Laylines, Zeitbedarf nach
+  Bootsklasse (Folkeboot, H-Boot, J/70, Pirat, Conger, ILCA 7, Europe, Opti,
+  Fahrtenkreuzer — Näherungspolaren, DSV-Yardstick-kalibriert), animierte Abfahrt
+  der Route, GPX-Export und teilbare Kurs-Links — nicht zur Navigation
 - Hell-/Dunkelmodus nach Systemeinstellung, responsiv, `prefers-reduced-motion` wird respektiert
 
 ## Lokal starten

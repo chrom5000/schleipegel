@@ -34,3 +34,13 @@ Puppeteer mit `executablePath: "/Applications/Google Chrome.app/Contents/MacOS/G
 - Ein externer 404 in der Konsole ist vorbestehend (externe Ressource), nicht lokal.
 - Hero rendert in beiden Farbschemata auf dunklem Grund (`--hero-deep`) — kein separater Dark-Mode-Check im Hero nötig.
 - Deploy = Push auf main (GitHub Actions) → live auf dieschlei.de. Nichts pushen, nur lokal verifizieren.
+
+## Regattaplaner (regatta.html)
+
+Eigene Seite, eigener Zustand: `window.REGATTA = { _map, _state }` (analog `HERO3D._map`).
+Kurs für Tests per URL-Hash setzen: `#b=<klasse>&t=<stundenindex>&k=lon~lat~side~name;…` —
+Achtung: `page.goto` auf dieselbe URL mit anderem Hash ist eine Same-Document-Navigation
+(kein `init()`); vorher `about:blank` laden. Wasserklicks über
+`REGATTA._map.project([lon,lat])` legen — der Planer lehnt Klicks auf Land mit Toast ab
+(Testpunkt vorher gegen `land.geojson` prüfen). Regression: `verify-regatta.js` +
+`verify-regatta-nowebgl.js` im Scratchpad.

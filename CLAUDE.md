@@ -30,6 +30,20 @@ node --check app.js                # Syntax-Check
 - **hero3d-Datenlayer**: DOM-Marker (`maplibregl.Marker`) — überleben `setStyle` und liegen über 3D und Seekarte. hero3d liest die app.js-Globals (`state`, `classify`, `bftClass`, Formatter …) direkt; app.js ruft `window.HERO3D?.renderData?.()` am Ende von `renderTiles()`/`renderRevierWind()` und `renderLight?.()` in `renderSunLayer()`. Fallen: `rotationAlignment:'map'` zieht `pitchAlignment:'map'` nach — für aufrechte Billboards explizit `pitchAlignment:'viewport'` setzen; Windzahlen werden um `bearing − dir` gegenrotiert (Update im `rotate`-Event). MapLibres `load`-Event feuert **nur beim ersten** Stilaufbau — nach `setStyle` auf `idle` warten, sonst hängt der Moduswechsel.
 - **Seekartendaten** (nur Revier 3D — die FNC-Seekarte hat sie nativ): `seamarks.json`/`depths.json` sind gebacken (`scripts/bake_seamarks.py`, `scripts/bake_depths.py`) und als Quellen+Layer **direkt im STYLE_3D-Dokument** definiert — so überleben sie `setStyle` ohne Re-Add-Logik. Text-Layer brauchen die selbst gehosteten Glyphen (`vendor/glyphs/noto/`, Fontstack-Name „noto"). Windpartikel: Canvas-Overlay `.h3-windcanvas` im Canvas-Container (über GL-Canvas, unter Markern), Partikel im Schirmraum, Richtung via `project/unproject`.
 
+## Regattaplaner (`regatta.html` + `regatta.js` + `regatta.css`)
+
+Eigenständige Seite, lädt nur MapLibre — **nicht** `app.js`/`hero3d.js`. `REVIER_POINTS`
+und der 3D-Kartenstil sind bewusste Kopien (Quelle app.js/hero3d.js — Änderungen dort
+hier nachziehen). Kurs per Klick auf Seezeichen (Snap via `queryRenderedFeatures`) oder
+Wasser; kompletter Zustand im URL-Hash (`#b=…&t=…&k=…`). Rechenkern: Näherungspolare je
+Bootsklasse (Rumpfgeschwindigkeits-Deckel 2,43·√LWL, Formfaktoren je Riggtyp,
+DSV-Yardstick-Skalierung gegen J/70-ORC-Anker) + Zeitschritt-Simulation (12 s): direkter
+Kurs zwischen Wende- und Halsenwinkel, sonst VMG-Zickzack mit Wende an der Layline oder
+wenn der Bug-Lookahead Land sieht (`land.geojson`-PIP). Wind: ICON-D2 an den 7
+Revierpunkten, zeitlich linear + räumlich IDW interpoliert. Der Deploy-Workflow ersetzt
+`__BUILD__` in `index.html` **und** `regatta.html` — neue HTML-Seiten dort in den
+sed-Aufruf aufnehmen.
+
 ## Mobile
 
 SVG-Texte skalieren mit der Karte und wären auf Telefonbreite unlesbar. Muster: `@media (max-width: 700px)` in `styles.css` hebt Schriftgrößen/Geometrie an (SVG-Attribute wie `r` per CSS), und Renderer fragen `matchMedia('(max-width: 700px)')` für Anker, Abstände und Größenfaktoren ab. Der Resize-Handler in `bindControls()` rendert betroffene Renderer nach. Neue Hero-Beschriftungen brauchen beide Seiten dieses Musters.

@@ -476,6 +476,15 @@ a { color: inherit; }
 
 .hero3d-controls button:hover { background: rgba(34, 56, 68, .85); }
 
+/* Link zum Regattaplaner — gleicher Chip-Look, warmer Akzent */
+.hero3d-regatta {
+  padding: 6px 10px; border-radius: 9px;
+  border: 1px solid rgba(255, 176, 87, .45);
+  background: rgba(13, 27, 34, .72); color: #ffb057;
+  font-size: 12.5px; text-decoration: none; white-space: nowrap;
+}
+.hero3d-regatta:hover { background: rgba(56, 41, 20, .85); }
+
 /* hero3d-Datenmarker: dunkle Chips, lesbar auf 3D und Seekarte */
 .h3-marker {
   display: flex; align-items: flex-end; gap: 6px;
