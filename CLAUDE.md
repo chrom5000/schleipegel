@@ -47,7 +47,9 @@ Folge-Kürzel: `35s` = Tonne 35 Steuerbord, `Gb` = GELB Backbord. **Rundungen:**
 Simulation fährt jede Bahnmarke (außer der Ziellinie) mit einem 28-m-Bogen auf der
 eingestellten Seite an (Bb = gegen, Stb = im Uhrzeigersinn); die Ankunftsschwelle liegt
 bei Rundungsmarken außerhalb des Bogenradius (`RUNDUNG_R + v·DT`), sonst schneidet die
-Anfahrt die falsche Seite. Seiten-Chip in der Kursliste rechnet neu. **PDF/Bahnblatt:** `baueDruckblatt()` rahmt
+Anfahrt die falsche Seite. Seiten-Chip in der Kursliste rechnet neu. **Windpartikel:** Canvas-Overlay `.rp-windcanvas` (Port des hero3d-Musters), Feld
+zeitinterpoliert auf Zeitregler bzw. Playback-Uhr (`wind.zeit`), respektiert
+`prefers-reduced-motion`. **PDF/Bahnblatt:** `baueDruckblatt()` rahmt
 die Karte top-down auf den Kurs, greift das WebGL-Canvas **im `render`-Event** ab
 (außerhalb ist der Puffer leer), komponiert Marken-Badges auf ein 2D-Canvas
 (`project()`-Koordinaten × pixelRatio) und füllt `#print-blatt`; sichtbar nur via

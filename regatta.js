@@ -717,6 +717,116 @@
     return boatMarker;
   }
 
+  /* ── Windpartikel: Canvas-Overlay (Port aus hero3d.js) ───────────
+     Partikel leben im Schirmraum, ihr Ortswind kommt per IDW aus den
+     Revierpunkten — zeitinterpoliert auf Zeitregler bzw. Playback-Uhr,
+     Schirm-Richtung via project/unproject (stimmt bei Pitch/Drehung). */
+  const wind = { canvas: null, ctx: null, parts: [], raf: 0,
+                 field: null, fieldKey: '', last: 0, zeit: null };
+
+  function windAnzeigeZeit() {
+    return wind.zeit ?? currentStartMs();
+  }
+
+  function windFeld() {
+    if (!state.wind) return null;
+    const t = windAnzeigeZeit();
+    const key = Math.round(t / 60000);             // minütlich reicht
+    if (wind.field && wind.fieldKey === key) return wind.field;
+    const pts = [];
+    for (const p of state.wind.points) {
+      const w = windAt([p.lon, p.lat], t);
+      if (!w) continue;
+      const b = ((w.dir + 180) % 360) * D2R;
+      pts.push({ lon: p.lon, lat: p.lat, ve: Math.sin(b) * w.ms, vn: Math.cos(b) * w.ms });
+    }
+    if (!pts.length) return null;
+    pts.meanMs = pts.reduce((s, f) => s + Math.hypot(f.ve, f.vn), 0) / pts.length;
+    wind.field = pts; wind.fieldKey = key;
+    return pts;
+  }
+
+  const windPartikel = (W, H) => ({ x: Math.random() * W, y: Math.random() * H,
+    life: Math.random(), dur: 2.2 + Math.random() * 2.5, jitter: 0.6 + Math.random() * 0.8 });
+
+  function ensureWindCanvas() {
+    if (wind.canvas || !map || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const c = document.createElement('canvas');
+    c.className = 'rp-windcanvas';
+    c.setAttribute('aria-hidden', 'true');
+    map.getCanvasContainer().insertBefore(c, map.getCanvas().nextSibling);
+    wind.canvas = c;
+    wind.ctx = c.getContext('2d');
+    const resize = () => {
+      const gl = map.getCanvas();
+      c.width = gl.width; c.height = gl.height;
+    };
+    resize();
+    map.on('resize', resize);
+    wind.last = performance.now();
+    wind.raf = requestAnimationFrame(windTick);
+  }
+
+  function windTick(now) {
+    wind.raf = requestAnimationFrame(windTick);
+    const dt = Math.min(0.1, (now - wind.last) / 1000);
+    wind.last = now;
+    const c = wind.canvas, ctx = wind.ctx;
+    if (!c || document.hidden) { ctx?.clearRect(0, 0, c.width, c.height); return; }
+    const field = windFeld();
+    if (!field) { ctx.clearRect(0, 0, c.width, c.height); return; }
+
+    const W = c.width, H = c.height;
+    const dpr = W / map.getCanvas().clientWidth || 1;
+    const n = Math.max(10, Math.min(110, Math.round(8 + field.meanMs * 9)));
+    while (wind.parts.length < n) wind.parts.push(windPartikel(W, H));
+    if (wind.parts.length > n) wind.parts.length = n;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = 1.4 * dpr;
+    ctx.lineCap = 'round';
+    const margin = 80 * dpr;
+    for (const q of wind.parts) {
+      q.life += dt / q.dur;
+      if (q.life >= 1) Object.assign(q, windPartikel(W, H), { life: 0 });
+
+      const ll = map.unproject([q.x / dpr, q.y / dpr]);
+      const cosl = Math.cos(ll.lat * D2R);
+      let sw = 0, ae = 0, an = 0;
+      for (const f of field) {
+        const dx = (ll.lng - f.lon) * 111.32 * cosl;
+        const dy = (ll.lat - f.lat) * 110.54;
+        const g = 1 / (dx * dx + dy * dy + 2.25);
+        sw += g; ae += f.ve * g; an += f.vn * g;
+      }
+      ae /= sw; an /= sw;
+      const ms = Math.hypot(ae, an);
+      if (ms < 0.05) continue;
+
+      const p1 = map.project([ll.lng, ll.lat]);
+      const p2 = map.project([ll.lng + (ae * 1e-5) / cosl, ll.lat + an * 1e-5]);
+      let dxp = p2.x - p1.x, dyp = p2.y - p1.y;
+      const norm = Math.hypot(dxp, dyp);
+      if (norm < 1e-6) continue;
+      dxp /= norm; dyp /= norm;
+
+      const spd = (22 + ms * 16) * dpr * q.jitter;
+      const len = (12 + ms * 4) * dpr * q.jitter;
+      q.x += dxp * spd * dt;
+      q.y += dyp * spd * dt;
+      if (q.x < -margin) q.x += W + 2 * margin;
+      if (q.x > W + margin) q.x -= W + 2 * margin;
+      if (q.y < -margin) q.y += H + 2 * margin;
+      if (q.y > H + margin) q.y -= H + 2 * margin;
+      const a = Math.sin(q.life * Math.PI) * Math.min(0.5, 0.2 + ms * 0.04);
+      ctx.strokeStyle = `rgba(159, 211, 238, ${a.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(q.x, q.y);
+      ctx.lineTo(q.x - dxp * len, q.y - dyp * len);
+      ctx.stroke();
+    }
+  }
+
   /* ── Playback: das Geisterboot segelt die Route ab ───────────── */
   let playRaf = 0;
   function playbackDuration() {
@@ -732,6 +842,7 @@
     $('#sim-clock').hidden = !next;
     if (!next) {
       cancelAnimationFrame(playRaf);
+      wind.zeit = null;
       boatMarker?.remove();
       renderWindMarkers(currentStartMs());
       drawPolar();
@@ -744,6 +855,7 @@
       if (!state.playing) return;
       const p = Math.min((now - t0) / total, 1);
       const simT = state.sim.t0 + p * (state.sim.t1 - state.sim.t0);
+      wind.zeit = simT;
       const s = sampleTrack(simT);
       boatMarker.setLngLat(s.pos).setRotation(s.heading);
       $('#sim-clock').textContent = fmtClock(simT) + `  ·  ${s.v.toFixed(1)} kn`;
@@ -1227,6 +1339,7 @@ ${trk}
     $('#time-slider').value = String(state.startIdx);
     renderMarkers();
     refresh();
+    if (state.wind) ensureWindCanvas();
     if (map && state.course.length > 1) {
       const b = new maplibregl.LngLatBounds();
       state.course.forEach((m) => b.extend(m.pos));

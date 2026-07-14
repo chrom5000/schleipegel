@@ -257,6 +257,13 @@ li.is-ziel .rp-badge {
   box-shadow: 0 0 0 4px rgba(255, 176, 87, .18);
 }
 
+/* Windpartikel-Overlay (über GL-Canvas, unter Markern) */
+.rp-windcanvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
 /* ── Karten-Marker (DOM) ───────────────────────────────────── */
 .rp-mark {
   width: 26px; height: 26px; border-radius: 50%;
