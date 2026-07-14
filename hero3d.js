@@ -417,6 +417,62 @@
     }
   }
 
+  /* ── HIMMELSKÖRPER: Sonne (nachts Mond) am Kartenrand in echter
+     Azimut-Richtung — der 3D-Ersatz für den Sonnenbogen der
+     Silhouette. Dreht mit der Kamera mit (rotate-Event). ── */
+
+  let himmelEl = null;
+
+  function ensureHimmel() {
+    if (himmelEl || !map) return;
+    himmelEl = document.createElement('div');
+    himmelEl.className = 'h3-himmel';
+    himmelEl.setAttribute('aria-hidden', 'true');
+    himmelEl.innerHTML = `
+      <svg viewBox="0 0 44 44" class="h3-himmel-sonne" aria-hidden="true">
+        <circle cx="22" cy="22" r="16" fill="#ffd97a" opacity=".16"/>
+        <circle cx="22" cy="22" r="12" fill="#ffd97a" opacity=".22"/>
+        <circle cx="22" cy="22" r="8" fill="#ffe49d"/>
+      </svg>
+      <svg viewBox="0 0 44 44" class="h3-himmel-mond" aria-hidden="true">
+        <circle cx="22" cy="22" r="14" fill="#e6edf2" opacity=".1"/>
+        <path d="M27 10a13 13 0 1 0 7.5 20A11 11 0 0 1 27 10z"
+              fill="#e6edf2" stroke="#b9c9d4" stroke-width="1"/>
+      </svg>
+      <small></small>`;
+    map.getContainer().appendChild(himmelEl);
+    map.on('rotate', renderHimmel);
+    map.on('resize', renderHimmel);
+  }
+
+  function renderHimmel() {
+    if (!map || typeof sunPosition !== 'function') return;
+    ensureHimmel();
+    const jetzt = new Date();
+    const sonne = sunPosition(jetzt);
+    let k = null;
+    if (sonne.el > -0.833) k = { az: sonne.az, el: sonne.el, typ: 'sonne', name: 'Sonne' };
+    else if (typeof moonPosition === 'function') {
+      const mond = moonPosition(jetzt);
+      if (mond.el > 0) k = { az: mond.az, el: mond.el, typ: 'mond', name: 'Mond' };
+    }
+    const r = map.getContainer().getBoundingClientRect();
+    if (!k || r.width < 60) { himmelEl.style.display = 'none'; return; }
+    himmelEl.style.display = '';
+    himmelEl.dataset.typ = k.typ;
+    // Schirmrichtung = Azimut minus Kartendrehung; bis an den Rand schieben
+    const th = ((k.az - map.getBearing()) * Math.PI) / 180;
+    const vx = Math.sin(th), vy = -Math.cos(th);
+    const cx = r.width / 2, cy = r.height / 2;
+    const dx = Math.abs(vx) > 1e-6 ? (cx - 46) / Math.abs(vx) : Infinity;
+    const dy = Math.abs(vy) > 1e-6 ? (cy - 54) / Math.abs(vy) : Infinity;
+    const d = Math.min(dx, dy);
+    himmelEl.style.left = `${(cx + vx * d).toFixed(1)}px`;
+    himmelEl.style.top = `${(cy + vy * d).toFixed(1)}px`;
+    himmelEl.querySelector('small').textContent =
+      `${k.name} ${compassPoint(k.az)} · ${Math.round(k.el)}°`;
+  }
+
   /* ── DATENLAYER (Phase 2): DOM-Marker, überleben setStyle ── */
 
   const markers = new Map();   // key → maplibregl.Marker
@@ -568,6 +624,7 @@
         up ? ((sun.az % 360) + 360) % 360 : 315);
       map.setPaintProperty('relief', 'hillshade-highlight-color', up ? '#4f83a2' : '#33596d');
       map.setPaintProperty('bg', 'background-color', up ? '#0d1b22' : '#0a141b');
+      renderHimmel();
     },
 
     init() {
