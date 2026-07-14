@@ -25,6 +25,13 @@ und Sonnenlauf — eine statische Website ohne Build-Schritt.
   Heuristik aus Saison, Wassertemperatur, Licht, Wind, Luftdruck, Pegel-Einstrom
   und Mondphase, mit offengelegten Faktoren. Ohne Rechtsangaben: Schonzeiten,
   Mindestmaße und örtliche Regeln sind selbst zu recherchieren
+- **Einkehr** (`einkehr.html`): freies OSM-Verzeichnis von Restaurants, Cafés,
+  Imbissen, Unterkünften, Camping- und Wohnmobilplätzen sowie Häfen rund um die
+  Schlei — Split-View mit Karte (Liste folgt dem Ausschnitt), Suche und
+  Kategorie-Filtern; Bewertungen extern per Direktlink zu Google bzw. Booking.
+  Mit **Wegenetz und Routenplanung**: OSM-Straßen und -Wege als Kartenlayer plus
+  clientseitiges A*-Routing (Auto/Rad/zu Fuß, Start per Standort oder Karten-Tipp,
+  Wegbeschreibung) — Planung, keine Navigation
 - Hell-/Dunkelmodus nach Systemeinstellung, responsiv, `prefers-reduced-motion` wird respektiert
 
 ## Lokal starten

@@ -116,6 +116,19 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   border: 1px solid var(--line); border-radius: 999px; transition: color .2s, border-color .2s;
 }
 .rp-mini:hover { color: #ff9d9d; border-color: rgba(255, 120, 120, .4); }
+.rp-bahnen { padding: 2px 16px 4px; }
+#bahn-select {
+  width: 100%; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid rgba(255, 176, 87, .4);
+  background: rgba(255, 176, 87, .08); color: var(--kurs);
+  font: inherit; font-size: .8rem; font-weight: 550; cursor: pointer;
+  appearance: none;
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="10" height="6"%3E%3Cpath d="M1 1l4 4 4-4" fill="none" stroke="%23ffb057" stroke-width="1.6"/%3E%3C/svg%3E');
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+#bahn-select:focus-visible { outline: 2px solid var(--kurs); outline-offset: 2px; }
+#bahn-select option { background: var(--deep-2); color: var(--ink); }
+
 .rp-hint {
   padding: 6px 16px 16px; font-size: .84rem; line-height: 1.5; color: var(--ink-dim);
 }
@@ -366,4 +379,45 @@ dialog form { text-align: right; margin-top: 14px; }
   .rp-disclaimer { left: 50%; translate: -50%; bottom: auto; top: calc(100px + env(safe-area-inset-top)); }
   .rp-classes { grid-template-columns: 1fr 1fr 1fr; }
   .rp-toast { bottom: 130px; }
+}
+
+
+/* ── Druck-Bahnblatt (PDF via Browser-Druckdialog) ─────────── */
+.print-blatt { display: none; }
+
+@page { size: A4 portrait; margin: 11mm; }
+
+@media print {
+  body { overflow: visible; background: #fff; }
+  body > *:not(.print-blatt) { display: none !important; }
+  .print-blatt {
+    display: block; color: #16232b; font-family: var(--font-b);
+    font-size: 10.5pt; line-height: 1.45;
+  }
+  .pb-kopf { display: flex; align-items: baseline; gap: 10px; border-bottom: 2.5px solid #16232b; padding-bottom: 6px; }
+  .pb-kopf h1 { font-family: var(--font-d); font-size: 19pt; font-weight: 750; }
+  .pb-kopf h1 span { color: #b96a00; font-weight: 400; }
+  .pb-kopf p { margin-left: auto; font-size: 8.5pt; color: #5a6d78; text-align: right; }
+  .pb-meta { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 9px 0 10px; font-size: 9.5pt; }
+  .pb-meta b { font-family: var(--font-d); }
+  .pb-meta span { color: #5a6d78; }
+  .pb-karte { width: 100%; border-radius: 6px; border: 1px solid #c6d2d9; display: block; }
+  .print-blatt h2 {
+    font-family: var(--font-d); font-size: 10pt; text-transform: uppercase;
+    letter-spacing: .1em; color: #5a6d78; margin: 12px 0 4px;
+  }
+  .print-blatt table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  .print-blatt th {
+    text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: .08em;
+    color: #5a6d78; border-bottom: 1.5px solid #16232b; padding: 2px 8px 3px 0;
+  }
+  .print-blatt td { padding: 3px 8px 3px 0; border-bottom: 1px solid #dbe4e9; vertical-align: baseline; }
+  .print-blatt td:last-child, .print-blatt th:last-child { text-align: right; padding-right: 0; }
+  .pb-stb { color: #0b7a43; font-weight: 650; }
+  .pb-bb { color: #b3372f; font-weight: 650; }
+  .pb-link { margin-top: 9px; font-size: 7.5pt; color: #5a6d78; overflow-wrap: anywhere; }
+  .pb-fuss { margin-top: 5px; font-size: 8pt; color: #5a6d78; border-top: 1px solid #dbe4e9; padding-top: 5px; }
+  .pb-fuss strong { color: #b3372f; }
+  .pb-karte, .print-blatt tr { break-inside: avoid; }
+  .print-blatt h2 { break-after: avoid; }
 }

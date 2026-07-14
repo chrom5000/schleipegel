@@ -40,7 +40,19 @@ Bootsklasse (Rumpfgeschwindigkeits-Deckel 2,43·√LWL, Formfaktoren je Riggtyp,
 DSV-Yardstick-Skalierung gegen J/70-ORC-Anker) + Zeitschritt-Simulation (12 s): direkter
 Kurs zwischen Wende- und Halsenwinkel, sonst VMG-Zickzack mit Wende an der Layline oder
 wenn der Bug-Lookahead Land sieht (`land.geojson`-PIP). Wind: ICON-D2 an den 7
-Revierpunkten, zeitlich linear + räumlich IDW interpoliert. Der Deploy-Workflow ersetzt
+Revierpunkten, zeitlich linear + räumlich IDW interpoliert. **Bahnvorlagen:** `BAHNEN`/
+`BAHN_MARKEN` in regatta.js = SVA-Bahnkarten Arnis (Quelle: sva1981.de, PDF 2024) über
+die Fahrwassertonnen 35–45 + OSM-Tonne „Regatta" (gelb); nur die Startlinie ist genähert.
+Folge-Kürzel: `35s` = Tonne 35 Steuerbord, `Gb` = GELB Backbord. **Rundungen:** Die
+Simulation fährt jede Bahnmarke (außer der Ziellinie) mit einem 28-m-Bogen auf der
+eingestellten Seite an (Bb = gegen, Stb = im Uhrzeigersinn); die Ankunftsschwelle liegt
+bei Rundungsmarken außerhalb des Bogenradius (`RUNDUNG_R + v·DT`), sonst schneidet die
+Anfahrt die falsche Seite. Seiten-Chip in der Kursliste rechnet neu. **PDF/Bahnblatt:** `baueDruckblatt()` rahmt
+die Karte top-down auf den Kurs, greift das WebGL-Canvas **im `render`-Event** ab
+(außerhalb ist der Puffer leer), komponiert Marken-Badges auf ein 2D-Canvas
+(`project()`-Koordinaten × pixelRatio) und füllt `#print-blatt`; sichtbar nur via
+`@media print`, Export über den Browser-Druckdialog (`window.print()`) — kein Server,
+keine PDF-Bibliothek. Der Deploy-Workflow ersetzt
 `__BUILD__` in `index.html` **und** `regatta.html` — neue HTML-Seiten dort in den
 sed-Aufruf aufnehmen.
 
@@ -53,6 +65,25 @@ Pegel-Trend cm/h) und Mondphase. Artenprofile im `ARTEN`-Array (Verhaltensmuster
 keine Rechtsangaben!). **Bewusst ohne Schonzeiten/Mindestmaße** — stattdessen
 Selbst-recherchieren-Hinweis an drei Stellen (Chip, Dialog, Startseiten-Footer);
 das muss bei Änderungen erhalten bleiben. Debug-Handle: `window.BEISS`.
+
+## Einkehr (`einkehr.html` + `einkehr.js` + `einkehr.css`)
+
+Split-View-Verzeichnis (Liste folgt der Karte, Airbnb-Muster): Gastro/Unterkünfte/
+Häfen aus `einkehr.json` (gebacken via `scripts/bake_einkehr.py` — Overpass `out
+center`, Distanzfilter ≤ 3 km zur Wasserfläche hält Eckernförde draußen). Karte =
+schlanke hero3d-Stil-Kopie mit Circle-Layer (`farbe` wird beim Laden je Feature
+eingebacken). **Bewertungen bewusst extern** (Google-Maps-Such-Link, Booking-Suchlink
+nur bei Unterkünften) — Google/Booking erlauben keine schlüsselfreie Einbettung, und
+Places-Daten dürften ohnehin nicht auf Nicht-Google-Karten. Debug: `window.EINKEHR`.
+Mobil: Liste im Vollbild, schwebender Karte/Liste-Umschalter (nach dem Umschalten
+`map.resize()` nötig). **Routing:** `wege.json` (gebacken via `scripts/bake_wege.py`,
+~7,7 MB roh / ~1,4 MB gzip, lazy nach erstem `idle`) trägt Kartendarstellung UND
+Routing-Graph — Stützpunkte deshalb NIE ausdünnen (Kreuzungen = gemeinsame
+Koordinaten, Adjazenz baut der Client). A* mit Profilen Auto/Rad/Fuß
+(m/s je Klassenindex, Einbahnen nur fürs Auto), Wegbeschreibung aus
+Namenswechseln; Klassenindex in bake_wege.py und `KLASSE_LABEL`/`PROFILE`
+in einkehr.js müssen zusammenpassen. Start außerhalb der Graph-Bbox →
+Google-Maps-Fallback-Link. `orte_labels.json` = Ortsnamen-Layer.
 
 ## Mobile
 

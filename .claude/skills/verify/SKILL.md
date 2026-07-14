@@ -51,3 +51,27 @@ Kartenlose Seite, kein WebGL nötig. Debug-Handle: `window.BEISS = { daten, scor
 (auf Bereitschaft warten via `waitForFunction(() => window.BEISS)`). Plausibilitäts-Anker:
 Sonnenzeiten müssen zur Jahreszeit passen; Juli → Aal top + Neumond-Bonus, Hering/
 Meerforelle/Hornhecht „aus Saison". Regression: `verify-angeln.js` im Scratchpad.
+
+
+## Einkehr (einkehr.html)
+
+Split-View mit MapLibre (SwiftShader-Flags nötig). Debug-Handle: `window.EINKEHR =
+{ _map, _state }`; auf `_state.orte.length` warten. Liste folgt der Karte (moveend) —
+Kamerasprünge via `EINKEHR._map.jumpTo`. Daten neu backen: `scripts/bake_einkehr.py`
+(braucht `water.geojson` im Arbeitsverzeichnis). Regression: `verify-einkehr.js`.
+
+Routing testen: `EINKEHR._zeigeRoute(orte[i])` + `EINKEHR._setStart([lon,lat],'Name')`,
+dann `#route-summe` prüfen. Plausibilitäts-Anker: Schleswig→Kappeln Auto ≈ 34 km / ~30 min.
+Wegenetz lädt lazy nach erstem idle (~12 s warten). Regression: `verify-route.js`.
+
+Bahnvorlagen (Regattaplaner): `page.select('#bahn-select', 'rot')` → 11 Marken in
+SVA-Reihenfolge (Start, 35s, 37s, Gb, 45b, 39b, Gb, 43b, 37b, 35b, Ziel), ~4,9 sm.
+Manuelle Kursänderung muss die Auswahl zurücksetzen. Regression: `verify-bahnen.js`.
+
+Rundungsseiten: je Vorbeifahrt messen (Begegnungsgruppen < 60 m entlang der Zeitachse),
+nicht global — doppelt angelaufene Tonnen (35/37 in Bahn Rot) haben zwei Passagen mit
+verschiedenen Seiten. Soll: Bogenabstand ~20–28 m. Regression: `verify-rundung.js`.
+
+Bahnblatt/PDF: `await REGATTA._druckblatt()` bauen lassen, dann `page.pdf()` (nutzt die
+@media-print-Stile) bzw. `emulateMediaType('print')` + Screenshot. Kamera muss nach dem
+Bau unverändert sein. Regression: `verify-pdf.js`.

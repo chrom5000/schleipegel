@@ -148,6 +148,57 @@
     return false;
   }
 
+  /* ── Bahnvorlagen: SVA-Bahnkarten (Segelverein Arnis) ────────────
+     Bahnen über die Fahrwassertonnen der Arnisser Breite. Tonnen-
+     lagen exakt aus seamarks.json (OSM); GELB (Vereinstonne) und
+     Start-/Ziellinie aus der Bahnkarte GENÄHERT — die UI sagt das.
+     Folge-Kürzel: Zahl+s/b = Tonne Stb/Bb runden, G = GELB. */
+  const BAHN_MARKEN = {
+    35: [9.93190, 54.62665], 37: [9.92892, 54.62513], 39: [9.92303, 54.62395],
+    43: [9.90742, 54.61971], 45: [9.89485, 54.61507],
+    G: [9.90750, 54.62617],                        // OSM-Tonne „Regatta" (gelb)
+    START: [9.9350, 54.6275],                      // genähert: Startlinie vor Arnis
+  };
+  const BAHNEN = {
+    rot: { name: 'Rot', folge: '35s 37s Gb 45b 39b Gb 43b 37b 35b' },
+    gruen: { name: 'Grün', folge: '35s 37s 45s Gs 39s 43s Gs 37b 35b' },
+    rotgelb: { name: 'Rot-Gelb', folge: '35s 37s Gb 43b 39b 43b 37b 35b' },
+    gruengelb: { name: 'Grün-Gelb', folge: '35s 37s 43s Gs 39s 43s 37b 35b' },
+    gelb: { name: 'Gelb', folge: '35s 37s Gb 39b Gb 39b Gb 39b 37b 35b' },
+    weiss: { name: 'Weiß', folge: '35s 37s Gb 39b Gb 39b 37b 35b' },
+  };
+  let bahnLaedt = false;
+
+  function ladeBahn(id) {
+    const b = BAHNEN[id];
+    if (!b) return;
+    const marken = b.folge.split(' ').map((tok) => {
+      const side = tok.at(-1) === 's' ? 'stb' : 'bb';
+      const key = tok.slice(0, -1);
+      return { pos: [...BAHN_MARKEN[key]],
+               name: key === 'G' ? 'GELB (Regatta-Tonne)' : `Tonne ${key}`, side };
+    });
+    state.course = [
+      { pos: [...BAHN_MARKEN.START], name: 'Startlinie Arnis', side: 'stb' },
+      ...marken,
+      { pos: [...BAHN_MARKEN.START], name: 'Ziellinie Arnis', side: 'stb' },
+    ];
+    bahnLaedt = true;
+    afterCourseChange();
+    bahnLaedt = false;
+    if (map) {
+      const bb = new maplibregl.LngLatBounds();
+      state.course.forEach((m) => bb.extend(m.pos));
+      const mobil = matchMedia('(max-width: 700px)').matches;
+      map.fitBounds(bb, {
+        padding: mobil ? { top: 100, bottom: 210, left: 40, right: 40 }
+                       : { top: 120, bottom: 160, left: 340, right: 340 },
+        maxZoom: 14,
+      });
+    }
+    toast(`Bahn ${b.name} geladen — Lage der Startlinie ist genähert`);
+  }
+
   /* ── Zustand ─────────────────────────────────────────────────── */
   const state = {
     course: [],                                    // {pos:[lon,lat], name, side:'stb'|'bb'}
@@ -211,6 +262,23 @@
      Wende- und Halsenwinkel liegt, sonst VMG-Zickzack. Gewendet wird
      an der Layline oder wenn der Bugausleger Land sieht. */
   const DT = 12;                                   // s je Schritt
+  const RUNDUNG_R = 28;                            // m Bogenradius um die Marke
+
+  /* Bogen um eine Bahnmarke: Bb = gegen, Stb = im Uhrzeigersinn.
+     aStart = Peilung Marke→Boot bei Ankunft, aEnd = seitlicher
+     Versatz zur Peilung des nächsten Schenkels. */
+  function rundungsBogen(M, aStart, brgOut, side) {
+    const ccw = side === 'bb';
+    const aEnd = wrap360(ccw ? brgOut + 90 : brgOut - 90);
+    let sweep = ccw ? wrap360(aStart - aEnd) : wrap360(aEnd - aStart);
+    if (sweep > 335) sweep = 335;                  // entartete Volldrehung kappen
+    const pts = [];
+    for (let a = 0; a < sweep; a += 16) {
+      pts.push(dest(M, wrap360(ccw ? aStart - a : aStart + a), RUNDUNG_R));
+    }
+    pts.push(dest(M, aEnd, RUNDUNG_R));
+    return pts;
+  }
 
   function simulate() {
     state.sim = null;
@@ -278,15 +346,38 @@
         track.push({ pos: [...pos], t, heading, twa, v: v * KN, tws, dir: w.dir, mode });
         modeTime[mode] = (modeTime[mode] ?? 0) + DT;
 
-        if (dRem < Math.max(30, v * DT * 1.2)) {   // Marke erreicht
-          t += dRem / v * 1000;
-          pos = [...target];
-          track.push({ pos: [...pos], t, heading: brgT, twa, v: v * KN, tws, dir: w.dir, mode });
-          break;
+        /* Ankunft: Ziellinie direkt durchfahren; Rundungsmarken schon
+           außerhalb des Bogenradius verlassen, damit die Anfahrt nie
+           dichter (oder auf der falschen Seite) an der Tonne vorbeiläuft */
+        const istZiel = li === state.course.length - 1;
+        if (dRem < (istZiel ? Math.max(32, v * DT * 1.2) : RUNDUNG_R + v * DT)) {
+          if (istZiel) {
+            t += dRem / v * 1000;
+            pos = [...target];
+            track.push({ pos: [...pos], t, heading: brgT, twa, v: v * KN, tws, dir: w.dir, mode });
+          }
+          break;                                   // Bahnmarken: Bogen folgt unten
         }
         pos = dest(pos, heading, v * DT);
         t += DT * 1000;
         if (t - t0 > 24 * 3600e3) break;           // Notbremse: > 24 h
+      }
+
+      /* Rundung: an allen Marken außer der Ziellinie auf der
+         eingestellten Seite herumfahren (sichtbar + Zeitaufschlag) */
+      if (li < state.course.length - 1) {
+        const w = windAt(pos, t);
+        const tws = w.ms * KN;
+        const aStart = wrap360(bearing(target, pos));
+        const brgOut = bearing(target, state.course[li + 1].pos);
+        const vR = Math.max(polar(boat, tws, 70), 1) / KN * 0.7;   // gedrosselt ums Manöver
+        for (const p of rundungsBogen(target, aStart, brgOut, state.course[li].side)) {
+          const d = dist(pos, p);
+          if (d < 0.5) continue;
+          t += d / vR * 1000;
+          track.push({ pos: p, t, heading: bearing(pos, p), twa: 70, v: vR * KN, tws, dir: w.dir, mode: 'rundung' });
+          pos = p;
+        }
       }
 
       const domMode = Object.entries(modeTime).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'halbwind';
@@ -475,7 +566,7 @@
       antialias: true, attributionControl: { compact: true },
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-    window.REGATTA = { _map: map, _state: state };   // für Tests/Debugging
+    window.REGATTA = { _map: map, _state: state, _druckblatt: baueDruckblatt };   // für Tests/Debugging
     map.on('styleimagemissing', (e) => {
       if (!e.id.startsWith('sm-') || map.hasImage(e.id)) return;
       const img = smIcon(e.id);
@@ -707,7 +798,7 @@
         <button class="rp-del" title="Marke entfernen" aria-label="Marke ${i + 1} entfernen">✕</button>`;
       li.querySelector('.rp-round').addEventListener('click', () => {
         m.side = m.side === 'stb' ? 'bb' : 'stb';
-        renderCourseList(); writeHash();
+        renderCourseList(); refresh(); writeHash();
       });
       li.querySelector('.rp-del').addEventListener('click', () => {
         state.course.splice(i, 1); afterCourseChange();
@@ -972,6 +1063,86 @@ ${trk}
     URL.revokeObjectURL(a.href);
   }
 
+  /* ── Druck-Bahnblatt (PDF über den Browser-Druckdialog) ──────────
+     Karte wird top-down auf den Kurs gerahmt und als Bild gegriffen
+     (WebGL-Puffer ist nur im render-Event gültig), Marken-Badges
+     werden auf ein 2D-Canvas komponiert, Kamera danach zurückgestellt. */
+  async function baueDruckblatt() {
+    if (state.course.length < 2) { toast('Erst einen Kurs legen oder eine Bahn laden.'); return false; }
+    if (!map) { toast('Ohne Karte kein Bahnblatt.'); return false; }
+    writeHash();
+    const cam = { center: map.getCenter(), zoom: map.getZoom(),
+                  pitch: map.getPitch(), bearing: map.getBearing() };
+    const bb = new maplibregl.LngLatBounds();
+    state.course.forEach((m) => bb.extend(m.pos));
+    (state.sim?.track ?? []).forEach((pt) => bb.extend(pt.pos));
+    map.fitBounds(bb, { padding: 70, duration: 0, pitch: 0, bearing: 0 });
+    await new Promise((res) => { map.once('idle', res); setTimeout(res, 8000); });
+    const roh = await new Promise((res) => {
+      map.once('render', () => res(map.getCanvas().toDataURL()));
+      map.triggerRepaint();
+    });
+
+    const gl = map.getCanvas();
+    const cv = document.createElement('canvas');
+    cv.width = gl.width; cv.height = gl.height;
+    const x = cv.getContext('2d');
+    const img = new Image();
+    await new Promise((res) => { img.onload = res; img.src = roh; });
+    x.drawImage(img, 0, 0);
+    const sc = gl.width / map.getContainer().clientWidth;
+    state.course.forEach((m, i) => {
+      const p = map.project(m.pos);
+      const px = p.x * sc, py = p.y * sc, r = 13 * sc;
+      x.beginPath(); x.arc(px, py, r, 0, 7);
+      x.fillStyle = i === 0 ? '#7fd4a8'
+        : (i === state.course.length - 1 ? '#e8f1f6' : '#ffb057');
+      x.fill();
+      x.lineWidth = 2.2 * sc; x.strokeStyle = '#0d1b22'; x.stroke();
+      x.fillStyle = '#241503';
+      x.font = `700 ${13 * sc}px Bricolage Grotesque, sans-serif`;
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(badgeText(i), px, py + sc);
+    });
+    const bild = cv.toDataURL('image/jpeg', 0.9);
+    map.jumpTo(cam);                               // Kamera zurück
+
+    const bahnId = $('#bahn-select').value;
+    const titel = bahnId ? `SVA-Bahn ${BAHNEN[bahnId].name}` : 'Eigener Kurs';
+    const s0 = state.sim;
+    const w0 = state.wind ? windAt(state.course[0].pos, currentStartMs()) : null;
+    const seite = (sd) => sd === 'stb'
+      ? '<span class="pb-stb">Stb ↻</span>' : '<span class="pb-bb">Bb ↺</span>';
+    const marken = state.course.map((m, i) => `<tr><td>${badgeText(i)}</td>
+      <td>${esc(m.name)}</td><td>${i === 0 || i === state.course.length - 1 ? '—' : seite(m.side)}</td></tr>`).join('');
+    const legs = s0 ? s0.legs.map((l, i) => `<tr>
+      <td>${badgeText(i)} → ${badgeText(i + 1)}</td><td>${MODE_NAME[l.mode]}</td>
+      <td>${fmtNm(l.rhumb)}</td><td>${l.tacks || '—'}</td><td>${fmtDur(l.dur)}</td></tr>`).join('') : '';
+    $('#print-blatt').innerHTML = `
+      <header class="pb-kopf"><h1>Bahnblatt <span>· ${esc(titel)}</span></h1>
+        <p>dieschlei.de/regatta<br>erstellt ${new Intl.DateTimeFormat('de-DE',
+          { dateStyle: 'medium', timeStyle: 'short' }).format(Date.now())}</p></header>
+      <div class="pb-meta">
+        <span>Boot <b>${esc(cls().name)}</b> (YS ${cls().ys})</span>
+        ${state.wind ? `<span>Start <b>${fmtTime.format(state.wind.times[state.startIdx])}</b></span>` : ''}
+        ${w0 ? `<span>Wind <b>${(w0.ms * KN).toFixed(0)} kn aus ${Math.round(w0.dir)}°</b> · Böen ${(w0.gust * KN).toFixed(0)} kn</span>` : ''}
+        ${s0 ? `<span>Bahn <b>${fmtNm(s0.dist)}</b> · gesegelt <b>${fmtNm(s0.sailed)}</b></span>
+        <span>Zeitbedarf <b>${fmtDur(s0.t1 - s0.t0)}</b> · ${s0.tacks} Wenden</span>` : ''}
+      </div>
+      <img class="pb-karte" src="${bild}" alt="Kurskarte">
+      <h2>Markenfolge</h2>
+      <table><thead><tr><th>#</th><th>Marke</th><th>Rundung</th></tr></thead>
+        <tbody>${marken}</tbody></table>
+      ${legs ? `<h2>Schenkel (Simulation)</h2>
+      <table><thead><tr><th>Schenkel</th><th>Kurs</th><th>Distanz</th><th>Wenden</th><th>Zeit</th></tr></thead>
+        <tbody>${legs}</tbody></table>` : ''}
+      <p class="pb-link">Kurs im Planer öffnen: ${esc(location.href)}</p>
+      <p class="pb-fuss">Näherungsrechnung (ICON-D2-Vorhersage, Näherungspolare) —
+        <strong>nicht zur Navigation</strong>. Maßgeblich sind Ausschreibung und Bahnkarte
+        des Veranstalters. Seezeichen © OSM · Wind: DWD/Open-Meteo · Yardstick: DSV.</p>`;
+    return true;
+  }
+
   /* ── Kleinkram ───────────────────────────────────────────────── */
   let toastTimer = 0;
   function toast(msg) {
@@ -993,6 +1164,7 @@ ${trk}
   }
   function afterCourseChange() {
     if (state.playing) togglePlay(false);
+    if (!bahnLaedt) { const sel = $('#bahn-select'); if (sel) sel.value = ''; }
     renderMarkers();
     renderCourseList();
     refresh();
@@ -1001,8 +1173,13 @@ ${trk}
 
   function bindUI() {
     $('#btn-clear').addEventListener('click', () => { state.course = []; afterCourseChange(); });
+    $('#bahn-select').addEventListener('change', (e) => { if (e.target.value) ladeBahn(e.target.value); });
     $('#btn-share').addEventListener('click', share);
     $('#btn-gpx').addEventListener('click', exportGpx);
+    $('#btn-pdf').addEventListener('click', async () => {
+      if (state.playing) togglePlay(false);
+      if (await baueDruckblatt()) requestAnimationFrame(() => window.print());
+    });
     $('#btn-info').addEventListener('click', () => $('#dlg-info').showModal());
     $('#btn-play').addEventListener('click', () => togglePlay());
     let simTimer = 0;

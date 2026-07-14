@@ -30,10 +30,12 @@
       <a href="index.html">Infocenter</a>
       <a href="regatta.html" aria-current="page">&#9873; Regatta</a>
       <a href="angeln.html">&#10547; Bei&szlig;fenster</a>
+      <a href="einkehr.html">&#8962; Einkehr</a>
     </nav>
     <div class="rp-actions">
       <button id="btn-share" class="rp-btn" title="Kurs als Link teilen">Teilen</button>
       <button id="btn-gpx" class="rp-btn" title="Kurs und berechnete Route als GPX exportieren">GPX</button>
+      <button id="btn-pdf" class="rp-btn" title="Bahnblatt drucken oder als PDF sichern">PDF</button>
       <button id="btn-info" class="rp-btn rp-btn-round" title="Über den Regattaplaner" aria-label="Informationen">i</button>
     </div>
   </header>
@@ -44,7 +46,18 @@
       <h2>Kurs</h2>
       <button id="btn-clear" class="rp-mini" hidden title="Alle Marken entfernen">Leeren</button>
     </header>
-    <p class="rp-hint" id="course-hint">Tippe Seezeichen oder Wasser an,<br>um deinen Kurs zu legen.</p>
+    <div class="rp-bahnen">
+      <select id="bahn-select" aria-label="Bahnvorlage des Segelvereins Arnis laden">
+        <option value="">Bahn laden … (SVA Arnis)</option>
+        <option value="rot">Bahn Rot</option>
+        <option value="gruen">Bahn Grün</option>
+        <option value="rotgelb">Bahn Rot-Gelb</option>
+        <option value="gruengelb">Bahn Grün-Gelb</option>
+        <option value="gelb">Bahn Gelb</option>
+        <option value="weiss">Bahn Weiß</option>
+      </select>
+    </div>
+    <p class="rp-hint" id="course-hint">Tippe Seezeichen oder Wasser an,<br>um deinen Kurs zu legen —<br>oder lade oben eine SVA-Bahn.</p>
     <ol class="rp-marks" id="course-list"></ol>
     <dl class="rp-sum" id="course-sum" hidden>
       <div><dt>Bahn</dt><dd id="sum-dist">–</dd></div>
@@ -109,6 +122,11 @@
     Yardstick-Fahrtenkreuzer für die Mittwochsregatta-Felder.
     Die Polaren sind <strong>Näherungen</strong>: Rumpfgeschwindigkeit und Kurventyp je Klasse,
     relativ kalibriert über DSV-Yardstickzahlen und die J/70-ORC-Polare.</p>
+    <p><strong>Bahnvorlagen:</strong> Die Bahnen Rot, Grün, Rot-Gelb, Grün-Gelb, Gelb und
+    Weiß folgen der Bahnkarte des Segelvereins Arnis (SVA) über die Fahrwassertonnen
+    35–45 der Arnisser Breite und die gelbe Regatta-Tonne. Die Tonnenlagen kommen aus
+    OpenStreetMap; die <strong>Start-/Ziellinie ist eine genäherte Position</strong> —
+    maßgeblich sind Ausschreibung und Bahnkarte des Veranstalters.</p>
     <p class="rp-dlg-warn">ICON-D2 rechnet auf einem 2,2-km-Gitter. Abdeckung unter Land,
     Thermik und die Kanalisierung des Windes in der schmalen Schlei sind darin
     <strong>nicht</strong> enthalten. Der Planer taugt für die Streckenplanung —
@@ -117,6 +135,9 @@
     Relief BSH (DL-DE-BY-2.0) · Yardstick: Deutscher Segler-Verband</p>
     <form method="dialog"><button class="rp-btn">Verstanden</button></form>
   </dialog>
+
+  <!-- Druck-Bahnblatt: nur im Druck sichtbar, Inhalt baut regatta.js -->
+  <section class="print-blatt" id="print-blatt" aria-hidden="true"></section>
 
   <div class="rp-toast" id="toast" role="status" aria-live="polite"></div>
 

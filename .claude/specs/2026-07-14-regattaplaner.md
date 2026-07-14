@@ -45,3 +45,15 @@ Uferlinie, Zeitbedarf nach Bootsklassen-Polare, animierte Abfahrt der Strecke.
 - `<dialog>` für Info/Klassenquellen, View Transitions wo verfügbar, volle
   `prefers-reduced-motion`-Unterstützung, Tastatur (Space = Play, ⌫ = letzte Marke).
 - Mobil ≤700 px: Panels als Bottom-Sheet mit Tabs, Karte bleibt Vollbild.
+
+
+## Nachtrag: SVA-Bahnvorlagen (2026-07-14)
+
+Nutzerwunsch: Regatten wie in der Vereins-Bahnkarte planen (sva1981.de,
+bahnkarten_2024.pdf). Umsetzung: Auswahlfeld „Bahn laden" im Kurspanel mit den
+sechs SVA-Bahnen (Rot, Grün, Rot-Gelb, Grün-Gelb, Gelb, Weiß) als Markenfolgen
+mit fester Rundungsseite. Tonnen 35/37/39/43/45 exakt aus seamarks.json (OSM,
+deckungsgleich mit der Bahnkarte), GELB = OSM-Sondertonne „Regatta"
+(54.62617, 9.90750), Startlinie vor Arnis genähert (54.6275, 9.9350; im
+Info-Dialog ausgewiesen). Manuelle Kursänderung setzt die Bahnwahl zurück;
+Bahnen sind über den URL-Hash teilbar wie jeder Kurs.
