@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-15T10:30:53+00:00",
+ "updated": "2026-07-16T11:16:23+00:00",
  "quelle": "Land Schleswig-Holstein, Badegewässer-Daten (dl-de/by-2-0)",
  "spots": [
   {
@@ -8,10 +8,10 @@
    "lat": 54.494145,
    "lon": 9.711103,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-07",
-   "ecoli": 360.0,
-   "entero": 87.0,
-   "wasserTemp": 18.0
+   "datum": "2026-07-13",
+   "ecoli": 10.0,
+   "entero": 10.0,
+   "wasserTemp": 24.0
   },
   {
    "id": "DESH_PR_0179",
@@ -19,10 +19,10 @@
    "lat": 54.505909,
    "lon": 9.711421,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-06-16",
-   "ecoli": 10.0,
+   "datum": "2026-07-13",
+   "ecoli": 170.0,
    "entero": 10.0,
-   "wasserTemp": 14.0
+   "wasserTemp": 24.0
   },
   {
    "id": "DESH_PR_0180",
@@ -30,10 +30,10 @@
    "lat": 54.52605,
    "lon": 9.725629,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-06-16",
-   "ecoli": 10.0,
-   "entero": 43.0,
-   "wasserTemp": 17.0
+   "datum": "2026-07-13",
+   "ecoli": 375.0,
+   "entero": 53.0,
+   "wasserTemp": 24.0
   },
   {
    "id": "DESH_PR_0181",
@@ -41,10 +41,10 @@
    "lat": 54.5481,
    "lon": 9.750292,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-06-16",
-   "ecoli": 87.0,
+   "datum": "2026-07-13",
+   "ecoli": 76.0,
    "entero": 10.0,
-   "wasserTemp": 16.0
+   "wasserTemp": 22.0
   },
   {
    "id": "DESH_PR_0248",
@@ -52,10 +52,10 @@
    "lat": 54.498713,
    "lon": 9.71411,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-06-16",
-   "ecoli": 65.0,
+   "datum": "2026-07-13",
+   "ecoli": 10.0,
    "entero": 10.0,
-   "wasserTemp": 14.0
+   "wasserTemp": 24.0
   },
   {
    "id": "DESH_PR_0259",
