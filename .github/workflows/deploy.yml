@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Cache-Busting-Version einsetzen
-        run: sed -i "s/__BUILD__/${{ github.run_number }}/g" index.html regatta.html angeln.html einkehr.html
+        run: sed -i "s/__BUILD__/${{ github.run_number }}/g" index.html regatta.html angeln.html einkehr.html entdecken.html
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
