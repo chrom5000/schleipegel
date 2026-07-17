@@ -19,6 +19,7 @@ import re
 import time
 import unicodedata
 
+# Abhängigkeiten (nur Bake-Zeit):  pip install requests pyproj
 import requests
 from pyproj import Transformer
 
@@ -99,13 +100,13 @@ def slugify(s):
     return s or 'ort'
 
 
-WP_HDR = {'User-Agent': 'dieschlei.de bake (einkauf@bohillebrand.de)'}
+HDR = {'User-Agent': 'dieschlei.de bake (einkauf@bohillebrand.de)'}
 
 
 def wikidata_label(qid):
     try:
         j = requests.get(f'https://www.wikidata.org/wiki/Special:EntityData/{qid}.json',
-                         headers=WP_HDR, timeout=30).json()
+                         headers=HDR, timeout=30).json()
         labels = j['entities'][qid].get('labels', {})
         return (labels.get('de') or {}).get('value', '')
     except Exception as e:                  # noqa: BLE001
@@ -135,7 +136,7 @@ def wiki_titel(t):
     if qid:
         try:
             j = requests.get(f'https://www.wikidata.org/wiki/Special:EntityData/{qid}.json',
-                             headers=WP_HDR, timeout=30).json()
+                             headers=HDR, timeout=30).json()
             sl = j['entities'][qid].get('sitelinks', {})
             if 'dewiki' in sl:
                 return 'de', sl['dewiki']['title']
@@ -153,7 +154,7 @@ def commons_credit(img_url):
         return '', ''
     datei = requests.utils.unquote(m.group(1))
     try:
-        j = requests.get('https://commons.wikimedia.org/w/api.php', headers=WP_HDR, timeout=30,
+        j = requests.get('https://commons.wikimedia.org/w/api.php', headers=HDR, timeout=30,
                          params={'action': 'query', 'titles': f'File:{datei}', 'prop': 'imageinfo',
                                  'iiprop': 'extmetadata', 'format': 'json'}).json()
         page = next(iter(j['query']['pages'].values()))
@@ -196,14 +197,23 @@ DENKMAL_DATEI = 'scripts/data/denkmalliste-sh.geojson'   # 37 MB, EPSG:25832, CC
 
 def lade_denkmale():
     """SH-Denkmalliste laden (bei Bedarf herunterladen), auf die Schlei-Region
-    beschränken und nach WGS84 umprojizieren. → Liste (lon, lat, ansprache_lower, anzeigetext)."""
+    beschränken und nach WGS84 umprojizieren. Bei Fehler: Warnung + leere Liste
+    (Bake läuft ohne Kulturdenkmal-Badges weiter)."""
     if not os.path.exists(DENKMAL_DATEI):
-        print('Lade Denkmalliste SH …')
-        os.makedirs('scripts/data', exist_ok=True)
-        rr = requests.get(DENKMAL_URL, headers=WP_HDR, timeout=180)
-        rr.raise_for_status()
-        open(DENKMAL_DATEI, 'wb').write(rr.content)
-    dm = json.load(open(DENKMAL_DATEI))
+        try:
+            print('Lade Denkmalliste SH …')
+            os.makedirs('scripts/data', exist_ok=True)
+            rr = requests.get(DENKMAL_URL, headers=HDR, timeout=180)
+            rr.raise_for_status()
+            open(DENKMAL_DATEI, 'wb').write(rr.content)
+        except Exception as e:                 # noqa: BLE001
+            print('WARNUNG: Denkmalliste SH nicht ladbar —', e, '→ Badge wird nicht gesetzt')
+            return []
+    try:
+        dm = json.load(open(DENKMAL_DATEI))
+    except Exception as e:                     # noqa: BLE001
+        print('WARNUNG: Denkmalliste SH unlesbar —', e, '→ Badge wird nicht gesetzt')
+        return []
     out = []
     for f in dm['features']:
         c = _koord(f.get('geometry') or {})
@@ -247,7 +257,7 @@ def anreichern(t):
     try:
         s = requests.get(f'https://{lang}.wikipedia.org/api/rest_v1/page/summary/'
                          + requests.utils.quote(titel.replace(' ', '_'), safe=''),
-                         headers=WP_HDR, timeout=30).json()
+                         headers=HDR, timeout=30).json()
     except Exception as e:                  # noqa: BLE001
         print('summary', titel, '→', e)
         return {}
