@@ -19,7 +19,7 @@ BBOX = '54.42,9.40,54.76,10.10'          # süd,west,nord,ost — deckt Haithabu
 MAX_DIST_M = 4000                          # großzügiger als Einkehr — Danewerk/Gottorf liegen weiter vom Wasser
 IMMER = ('danewerk', 'danevirke')          # Flaggschiffe weiter landeinwärts (Distanzfilter umgehen)
 
-# (Overpass-Schlüssel, Werte-Regex) — nur benannte Objekte
+# (Overpass-Schlüssel, Werte-Regex) — Objekte per Name ODER Wikidata-/Wikipedia-Link
 TAGS = [
     ('historic', 'castle|manor|palace|monument|memorial|archaeological_site|ruins|rune_stone|tumulus|boundary_stone|church|monastery'),
     ('tourism', 'museum|artwork|attraction|viewpoint'),
@@ -100,7 +100,7 @@ def wikidata_label(qid):
         j = requests.get(f'https://www.wikidata.org/wiki/Special:EntityData/{qid}.json',
                          headers=WP_HDR, timeout=30).json()
         labels = j['entities'][qid].get('labels', {})
-        return (labels.get('de') or labels.get('en') or {}).get('value', '')
+        return (labels.get('de') or {}).get('value', '')
     except Exception as e:                  # noqa: BLE001
         print('wdlabel', qid, '→', e)
         return ''
