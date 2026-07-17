@@ -165,7 +165,7 @@
       if (farbe) b.style.setProperty('--dot', farbe);
       b.setAttribute('aria-pressed', String(state.kat === id));
       b.innerHTML = `${farbe ? '<span class="dot"></span>' : ''}${name}${n != null ? ` <small>${n}</small>` : ''}`;
-      b.addEventListener('click', () => { state.tour = null; state.kat = id; renderChips(); applyFilter(); });
+      b.addEventListener('click', () => { state.tour = null; state.kat = id; renderChips(); renderTouren(); applyFilter(); });
       box.appendChild(b);
     };
     mkChip('alle', 'Alle', null, state.orte.length);
@@ -210,6 +210,42 @@
     }
   }
 
+  /* ── Tour abfahren: A* über alle Ziel-Paare gekettet, Streckenzug in
+     Quelle `route` (dieselbe wie „Route hierher"), Summe im Routen-
+     panel. Nicht routbare Abschnitte (z. B. quer über die Schlei ohne
+     Fähre) werden übersprungen statt die Tour abzubrechen. ────────── */
+  async function fahreTour(t) {
+    const ziele = tourZiele(t);
+    if (ziele.length < 2) return;
+    if ($('#route-status')) $('#route-status').textContent = 'Tour wird berechnet …';
+    await router.ladeGraph();
+    const v = router.PROFILE[route.profil].v;
+    const coords = [];
+    let dist = 0, dauer = 0, fehlend = 0;
+    for (let i = 0; i < ziele.length - 1; i++) {
+      const a = router.nahKnoten(...ziele[i].geometry.coordinates, route.profil);
+      const b = router.nahKnoten(...ziele[i + 1].geometry.coordinates, route.profil);
+      const weg = a >= 0 && b >= 0 ? router.astar(a, b, v, route.profil === 'auto') : null;
+      if (!weg) { fehlend++; continue; }
+      coords.push(...(coords.length ? weg.coords.slice(1) : weg.coords));
+      dist += weg.dist; dauer += weg.dauer;
+    }
+    map.getSource('route').setData({ type: 'FeatureCollection',
+      features: coords.length ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }] : [] });
+    $('#route-panel').hidden = false;
+    $('#route-ziel').textContent = t.name.replace(/^[^ ]+ /, '');
+    $('#route-summe').innerHTML = `Gesamttour · ${dist < 950 ? Math.round(dist / 10) * 10 + ' m'
+      : (dist / 1000).toFixed(1).replace('.', ',') + ' km'} · ${window.SchleiMap.fmtDauer(dauer)}
+      ${fehlend ? `<small>${fehlend} Abschnitt(e) ohne Wegverbindung — evtl. per Boot/Fähre</small>`
+        : '<small>Planung über OSM-Wegedaten — keine Navigation</small>'}`;
+    $('#route-erg').hidden = false;
+    if (coords.length) {
+      const bb = new maplibregl.LngLatBounds();
+      coords.forEach((c) => bb.extend(c));
+      map.fitBounds(bb, { padding: 70, maxZoom: 13.5, duration: 700 });
+    }
+  }
+
   function renderTourListe(ziele, t) {
     const box = $('#cards');
     $('#count').textContent = `Tour „${t.name}" — ${ziele.length} Ziele in Reihenfolge`;
@@ -218,6 +254,7 @@
       const p = f.properties;
       const li = document.createElement('li');
       li.className = 'ek-card';
+      li.dataset.id = p.id;
       li.style.setProperty('--dot', KAT[p.cat].farbe);
       li.innerHTML = `<div class="ek-card-kopf"><span class="dot"></span>
         <h2>${i + 1}. ${esc(p.name)}</h2></div>
@@ -247,6 +284,11 @@
   async function init() {
     bindUI();
     router.bindRoute({ resolveZiel: (b) => state.orte.find((o) => o.properties.id === b.dataset.id) });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#tour-fahren')) return;
+      const t = ROUTEN.find((r) => r.id === state.tour);
+      if (t) fahreTour(t);
+    });
     const laden = fetch(`entdecken.json?v=${BUILD}`).then((r) => r.json());
     try {
       map = new maplibregl.Map({
