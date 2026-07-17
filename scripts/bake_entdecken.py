@@ -17,6 +17,7 @@ import requests
 
 BBOX = '54.42,9.40,54.76,10.10'          # süd,west,nord,ost — deckt Haithabu/Danewerk/Schleimünde
 MAX_DIST_M = 4000                          # großzügiger als Einkehr — Danewerk/Gottorf liegen weiter vom Wasser
+IMMER = ('danewerk', 'danevirke')          # Flaggschiffe weiter landeinwärts (Distanzfilter umgehen)
 
 # (Overpass-Schlüssel, Werte-Regex) — nur benannte Objekte
 TAGS = [
@@ -192,7 +193,7 @@ for el in elements:
     name = objekt_name(t)
     if lat is None or lon is None or not name:
         continue
-    if dist_schlei(lon, lat) > MAX_DIST_M:
+    if dist_schlei(lon, lat) > MAX_DIST_M and not any(s in name.lower() for s in IMMER):
         skipped += 1
         continue
     sid = slugify(name)
