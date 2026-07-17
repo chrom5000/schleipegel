@@ -25,8 +25,12 @@ TAGS = [
     ('man_made', 'lighthouse|windmill|watermill|tower'),
     ('amenity', 'place_of_worship'),
 ]
-q = '[out:json][timeout:180];\n(' + ''.join(
-    f'nwr["{k}"~"^({v})$"]["name"]({BBOX});' for k, v in TAGS) + ');\nout center;'
+parts = []
+for k, v in TAGS:
+    parts.append(f'nwr["{k}"~"^({v})$"]["name"]({BBOX});')
+    parts.append(f'nwr["{k}"~"^({v})$"]["wikidata"]({BBOX});')
+    parts.append(f'nwr["{k}"~"^({v})$"]["wikipedia"]({BBOX});')
+q = '[out:json][timeout:180];\n(' + ''.join(parts) + ');\nout center;'
 
 r = None
 for url in ('https://overpass-api.de/api/interpreter',
@@ -88,6 +92,28 @@ def slugify(s):
 
 
 WP_HDR = {'User-Agent': 'dieschlei.de bake (einkauf@bohillebrand.de)'}
+
+
+def wikidata_label(qid):
+    try:
+        j = requests.get(f'https://www.wikidata.org/wiki/Special:EntityData/{qid}.json',
+                         headers=WP_HDR, timeout=30).json()
+        labels = j['entities'][qid].get('labels', {})
+        return (labels.get('de') or labels.get('en') or {}).get('value', '')
+    except Exception as e:                  # noqa: BLE001
+        print('wdlabel', qid, '→', e)
+        return ''
+
+
+def objekt_name(t):
+    if t.get('name'):
+        return t['name']
+    wp = t.get('wikipedia', '')
+    if wp.startswith('de:'):
+        return wp[3:].replace('_', ' ')
+    if t.get('wikidata'):
+        return wikidata_label(t['wikidata'])
+    return ''
 
 
 def wiki_titel(t):
@@ -163,7 +189,7 @@ for el in elements:
     t = el.get('tags', {})
     lat = el.get('lat') or el.get('center', {}).get('lat')
     lon = el.get('lon') or el.get('center', {}).get('lon')
-    name = t.get('name')
+    name = objekt_name(t)
     if lat is None or lon is None or not name:
         continue
     if dist_schlei(lon, lat) > MAX_DIST_M:
