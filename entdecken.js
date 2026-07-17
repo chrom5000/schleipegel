@@ -22,6 +22,17 @@
   const state = { orte: [], kat: 'alle', suche: '', tour: null, aktiv: null };
   let map = null;
 
+  /* ── Themenrouten: kuratierte Ziel-Reihenfolgen, IDs = Slugs aus dem
+     Bake (entdecken.json). Fahren der Route: Task 11. ────────────── */
+  const ROUTEN = [
+    { id: 'wikinger', name: '🛡 Wikinger & Welterbe',
+      ziele: ['haithabu', 'wikinger-museum-haithabu', 'wikingerhaeuser-haithabu', 'danewerk', 'danevirke-museum'] },
+    { id: 'kirchen', name: '⛪ Kirchen der Schlei',
+      ziele: ['sankt-petri-dom-zu-schleswig', 'sankt-johannis-kloster-vor-schleswig', 'kirche-sieseby', 'kirche-karby', 'sankt-nikolai'] },
+    { id: 'maritim', name: '⚓ Maritime Wahrzeichen',
+      ziele: ['leuchtturm-schleimuende', 'museumshafen-kappeln', 'heringszaun-kappeln', 'amanda'] },
+  ];
+
   /* ── Karte: seitengemeinsamer Stil aus schlei-map.js ─────────────── */
   const STYLE = window.SchleiMap.baseStyle(BUILD);
 
@@ -161,6 +172,63 @@
     for (const [id, k] of Object.entries(KAT)) mkChip(id, k.name, k.farbe, zahl[id] ?? 0);
   }
 
+  /* ── Themenrouten: Chipleiste, Hervorhebung auf der Karte, Liste ── */
+  function renderTouren() {
+    const box = $('#touren');
+    box.innerHTML = '';
+    for (const t of ROUTEN) {
+      const b = document.createElement('button');
+      b.className = 'ed-tour';
+      b.setAttribute('aria-pressed', String(state.tour === t.id));
+      b.textContent = t.name;
+      b.addEventListener('click', () => waehleTour(state.tour === t.id ? null : t.id));
+      box.appendChild(b);
+    }
+  }
+
+  function tourZiele(t) {
+    return t.ziele.map((id) => state.orte.find((o) => o.properties.id === id)).filter(Boolean);
+  }
+
+  function waehleTour(id) {
+    state.tour = id;
+    renderTouren();
+    const src = map?.getSource('touren');
+    if (!id) { src?.setData({ type: 'FeatureCollection', features: [] }); applyFilter(); return; }
+    const t = ROUTEN.find((r) => r.id === id);
+    const ziele = tourZiele(t);
+    const feats = ziele.map((f, i) => ({ type: 'Feature',
+      properties: { nr: String(i + 1) }, geometry: f.geometry }));
+    if (ziele.length > 1) feats.push({ type: 'Feature', properties: {},
+      geometry: { type: 'LineString', coordinates: ziele.map((f) => f.geometry.coordinates) } });
+    src?.setData({ type: 'FeatureCollection', features: feats });
+    renderTourListe(ziele, t);
+    if (ziele.length) {
+      const bb = new maplibregl.LngLatBounds();
+      ziele.forEach((f) => bb.extend(f.geometry.coordinates));
+      map.fitBounds(bb, { padding: 80, maxZoom: 13, duration: 700 });
+    }
+  }
+
+  function renderTourListe(ziele, t) {
+    const box = $('#cards');
+    $('#count').textContent = `Tour „${t.name}" — ${ziele.length} Ziele in Reihenfolge`;
+    box.innerHTML = '';
+    ziele.forEach((f, i) => {
+      const p = f.properties;
+      const li = document.createElement('li');
+      li.className = 'ek-card';
+      li.style.setProperty('--dot', KAT[p.cat].farbe);
+      li.innerHTML = `<div class="ek-card-kopf"><span class="dot"></span>
+        <h2>${i + 1}. ${esc(p.name)}</h2></div>
+        <p class="ek-card-sub">${esc(KAT[p.cat].einzel)}</p>`;
+      li.addEventListener('click', () => waehle(f, false));
+      box.appendChild(li);
+    });
+    box.insertAdjacentHTML('beforeend',
+      `<li class="ek-leer"><button class="ek-akt ek-akt-tour" id="tour-fahren">🧭 Tour abfahren</button></li>`);
+  }
+
   function bindUI() {
     let t = 0;
     $('#suche').addEventListener('input', (e) => {
@@ -197,8 +265,10 @@
       });
       map.on('mouseenter', 'orte-punkt', () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', 'orte-punkt', () => { map.getCanvas().style.cursor = ''; });
-      /* Themen-Routen: eigene Quelle + Layer zur Laufzeit ergänzt (unter
-         orte-punkt) — überleben, da kein setStyle nötig. Befüllung: Task 10. */
+      /* Themen-Routen: eigene Quelle + Layer zur Laufzeit ergänzt — Linie
+         unter orte-punkt (dezent), Nummern über orte-punkt (sonst deckt der
+         opake POI-Punkt an derselben Koordinate die Ziffer zu). Beide
+         überleben, da kein setStyle nötig. Befüllung: Task 10. */
       map.on('load', () => {
         map.addSource('touren', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         map.addLayer({ id: 'tour-linie', type: 'line', source: 'touren',
@@ -206,8 +276,9 @@
           paint: { 'line-color': '#d9a441', 'line-width': 3, 'line-dasharray': [1.5, 1.2] } }, 'orte-punkt');
         map.addLayer({ id: 'tour-num', type: 'symbol', source: 'touren',
           filter: ['==', ['geometry-type'], 'Point'],
-          layout: { 'text-field': ['get', 'nr'], 'text-font': ['noto'], 'text-size': 13 },
-          paint: { 'text-color': '#0d1b22', 'text-halo-color': '#d9a441', 'text-halo-width': 9 } }, 'orte-punkt');
+          layout: { 'text-field': ['get', 'nr'], 'text-font': ['noto'], 'text-size': 13,
+            'text-allow-overlap': true, 'text-ignore-placement': true },
+          paint: { 'text-color': '#0d1b22', 'text-halo-color': '#d9a441', 'text-halo-width': 9 } }, 'orte-name');
       });
     } catch (e) {
       console.warn('Karte nicht verfügbar:', e);
@@ -219,6 +290,7 @@
     gj.features.forEach((f) => { f.properties.farbe = KAT[f.properties.cat]?.farbe ?? '#9db4c0'; });
     state.orte = gj.features;
     renderChips();
+    renderTouren();
     window.ENTDECKEN = { _map: map, _state: state, _route: route,
       _setStart: router.setStart, _zeigeRoute: router.zeigeRoutePanel };   // für Tests/Debugging
     if (map) {
