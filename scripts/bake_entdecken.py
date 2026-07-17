@@ -87,12 +87,16 @@ def slugify(s):
 
 
 feats, skipped, seen = [], 0, {}
-for el in r.json()['elements']:
+elements = sorted(r.json()['elements'], key=lambda el: (
+    (el.get('tags', {}).get('name') or ''),
+    el.get('lat') or el.get('center', {}).get('lat') or 0,
+    el.get('lon') or el.get('center', {}).get('lon') or 0))
+for el in elements:
     t = el.get('tags', {})
     lat = el.get('lat') or el.get('center', {}).get('lat')
     lon = el.get('lon') or el.get('center', {}).get('lon')
     name = t.get('name')
-    if lat is None or not name:
+    if lat is None or lon is None or not name:
         continue
     if dist_schlei(lon, lat) > MAX_DIST_M:
         skipped += 1
