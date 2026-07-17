@@ -239,6 +239,15 @@
       ${fehlend ? `<small>${fehlend} Abschnitt(e) ohne Wegverbindung — evtl. per Boot/Fähre</small>`
         : '<small>Planung über OSM-Wegedaten — keine Navigation</small>'}`;
     $('#route-erg').hidden = false;
+    $('#route-schritte').innerHTML = '';
+    const koord = (f) => f.geometry.coordinates[1] + ',' + f.geometry.coordinates[0];
+    const gmaps = 'https://www.google.com/maps/dir/?api=1'
+      + '&origin=' + koord(ziele[0])
+      + '&destination=' + koord(ziele[ziele.length - 1])
+      + (ziele.length > 2 ? '&waypoints=' + ziele.slice(1, -1).map(koord).join('|') : '')
+      + '&travelmode=' + router.PROFILE[route.profil].mode;
+    $('#route-google').href = gmaps;
+    $('#route-status').textContent = t.name.replace(/^[^ ]+ /, '') + ' · ' + router.PROFILE[route.profil].name;
     if (coords.length) {
       const bb = new maplibregl.LngLatBounds();
       coords.forEach((c) => bb.extend(c));
