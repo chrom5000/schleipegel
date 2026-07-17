@@ -3,3 +3,6 @@
 # Lokale API-Referenz (Fremdmaterial, nicht Teil der Website)
 Docs/
 .superpowers/
+
+# SH-Denkmalliste-Rohdaten (37 MB, CC BY 4.0 Land SH) — bake_entdecken.py lädt sie bei Bedarf
+scripts/data/denkmalliste-sh.geojson

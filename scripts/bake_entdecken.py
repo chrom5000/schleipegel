@@ -6,14 +6,21 @@ mit Wikipedia-Text+Foto (Task 2) und einem Denkmalliste-Badge (Task 3); die
 Highlight-Einführungen stehen in KURATIERT (Task 4). Nur Bake-Zeit (requests,
 pyproj); Ausgabe wird committet. Daten © OSM-Mitwirkende (ODbL), Land SH,
 Wikipedia/Wikimedia (CC BY-SA).
+
+Denkmalliste SH: Geodaten-Denkmalliste des Landesamts für Denkmalpflege SH
+(opendata.schleswig-holstein.de, CC BY 4.0), CRS EPSG:25832 (UTM 32N) — wird
+bei Bedarf nach scripts/data/denkmalliste-sh.geojson heruntergeladen (37 MB,
+gitignored) und mit pyproj nach WGS84 umprojiziert.
 """
 import json
 import math
+import os
 import re
 import time
 import unicodedata
 
 import requests
+from pyproj import Transformer
 
 BBOX = '54.42,9.40,54.76,10.10'          # süd,west,nord,ost — deckt Haithabu/Danewerk/Schleimünde
 MAX_DIST_M = 4000                          # großzügiger als Einkehr — Danewerk/Gottorf liegen weiter vom Wasser
@@ -159,6 +166,79 @@ def commons_credit(img_url):
         return '', ''
 
 
+_T25832 = Transformer.from_crs('EPSG:25832', 'EPSG:4326', always_xy=True)
+
+
+def _koord(geom):
+    """Repräsentativen (lon,lat) eines Denkmal-Features holen (Punkt oder Polygon-Schwerpunkt)."""
+    g = geom['type']
+    if g == 'Point':
+        c = geom['coordinates']
+    elif g in ('Polygon', 'MultiPolygon'):
+        ring = geom['coordinates'][0] if g == 'Polygon' else geom['coordinates'][0][0]
+        c = [sum(x) / len(ring) for x in zip(*[(pt[0], pt[1]) for pt in ring])]
+    elif g in ('LineString', 'MultiLineString'):
+        line = geom['coordinates'] if g == 'LineString' else geom['coordinates'][0]
+        c = line[len(line) // 2]
+    else:
+        return None
+    lon, lat = c[0], c[1]
+    if lon > 180 or lat > 180:              # projiziert → nach WGS84
+        lon, lat = _T25832.transform(lon, lat)
+    return lon, lat
+
+
+DENKMAL_URL = ('https://opendata.schleswig-holstein.de/dataset/'
+               '6dbb6602-6199-4389-94cb-22be85440277/resource/'
+               '7f6bf27a-9cbc-4931-b9af-9b111e61359d/download/geodaten-denkmalliste-sh.geojson')
+DENKMAL_DATEI = 'scripts/data/denkmalliste-sh.geojson'   # 37 MB, EPSG:25832, CC BY 4.0 (Land SH) — gitignored
+
+
+def lade_denkmale():
+    """SH-Denkmalliste laden (bei Bedarf herunterladen), auf die Schlei-Region
+    beschränken und nach WGS84 umprojizieren. → Liste (lon, lat, ansprache_lower, anzeigetext)."""
+    if not os.path.exists(DENKMAL_DATEI):
+        print('Lade Denkmalliste SH …')
+        os.makedirs('scripts/data', exist_ok=True)
+        rr = requests.get(DENKMAL_URL, headers=WP_HDR, timeout=180)
+        rr.raise_for_status()
+        open(DENKMAL_DATEI, 'wb').write(rr.content)
+    dm = json.load(open(DENKMAL_DATEI))
+    out = []
+    for f in dm['features']:
+        c = _koord(f.get('geometry') or {})
+        if not c:
+            continue
+        lon, lat = c
+        if not (9.30 <= lon <= 10.20 and 54.38 <= lat <= 54.80):   # nur Schlei-Region
+            continue
+        pr = f.get('properties', {})
+        ansprache = (pr.get('Ansprache') or '').strip()
+        layer = (pr.get('LayerName') or '').strip()
+        txt = f'{layer}: {ansprache}' if ansprache else layer
+        out.append((lon, lat, ansprache.lower(), txt))
+    print('Denkmale (Schlei-Region):', len(out))
+    return out
+
+
+DENKMALE = lade_denkmale()
+
+
+def denkmal_match(name, lon, lat):
+    """Nächstes Denkmal ≤50 m, oder ≤150 m mit Namensähnlichkeit → Badge + Anzeigetext."""
+    ml = 111320 * math.cos(math.radians(lat))
+    nl = name.lower()
+    best = None
+    for dx, dy, dn, txt in DENKMALE:
+        d = math.hypot((dx - lon) * ml, (dy - lat) * 110540)
+        if d <= 50 or (d <= 150 and dn and (dn in nl or nl in dn)):
+            if best is None or d < best[0]:
+                best = (d, txt)
+    if best is None:
+        return {}
+    return {'kulturdenkmal': True, **({'kulturdenkmal_text': best[1]} if best[1] else {})}
+
+
 def anreichern(t):
     """→ dict mit text/wiki_url/img/img_credit/img_license (leere Felder weg)."""
     lang, titel = wiki_titel(t)
@@ -209,6 +289,7 @@ for el in elements:
         'website': t.get('website') or t.get('contact:website') or '',
     }
     p.update(anreichern(t))
+    p.update(denkmal_match(name, lon, lat))
     time.sleep(0.1)
     feats.append({'type': 'Feature',
                   'properties': {k: v for k, v in p.items() if v},
