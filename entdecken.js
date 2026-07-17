@@ -25,6 +25,12 @@
   /* ── Karte: seitengemeinsamer Stil aus schlei-map.js ─────────────── */
   const STYLE = window.SchleiMap.baseStyle(BUILD);
 
+  /* ── Routing im gemeinsamen Modul (schlei-map.js): A* über das
+     gebackene Wegenetz. `getMap` reicht die erst später erzeugte
+     Karte spät nach — bindRoute() läuft schon zu Beginn von init(). */
+  const router = window.SchleiMap.createRouting({ build: BUILD, getMap: () => map });
+  const { route } = router;
+
   /* ── Filter + Datenfluss ─────────────────────────────────────── */
   function gefiltert() {
     const q = state.suche.trim().toLowerCase();
@@ -172,6 +178,7 @@
   /* ── Start ───────────────────────────────────────────────────── */
   async function init() {
     bindUI();
+    router.bindRoute({ resolveZiel: (b) => state.orte.find((o) => o.properties.id === b.dataset.id) });
     const laden = fetch(`entdecken.json?v=${BUILD}`).then((r) => r.json());
     try {
       map = new maplibregl.Map({
@@ -182,7 +189,9 @@
       });
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
       map.on('moveend', renderListe);
+      map.on('click', (e) => { if (route.pick) router.pickAt([e.lngLat.lng, e.lngLat.lat]); });
       map.on('click', 'orte-punkt', (e) => {
+        if (route.pick) return;
         const f = state.orte.find((o) => o.properties.id === e.features[0].properties.id);
         if (f) waehle(f, true);
       });
@@ -210,10 +219,12 @@
     gj.features.forEach((f) => { f.properties.farbe = KAT[f.properties.cat]?.farbe ?? '#9db4c0'; });
     state.orte = gj.features;
     renderChips();
-    window.ENTDECKEN = { _map: map, _state: state };   // für Tests/Debugging
+    window.ENTDECKEN = { _map: map, _state: state, _route: route,
+      _setStart: router.setStart, _zeigeRoute: router.zeigeRoutePanel };   // für Tests/Debugging
     if (map) {
       if (map.isStyleLoaded()) applyFilter();
       else map.once('load', applyFilter);
+      map.once('idle', () => router.ladeGraph());   // Wegenetz lazy: Anzeige + Routing-Graph
     } else {
       renderListe();
     }
