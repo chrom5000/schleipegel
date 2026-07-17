@@ -189,6 +189,35 @@ def _koord(geom):
     return lon, lat
 
 
+# Kuratierte Einführungen für die Flaggschiffe (Redaktion), verknüpft über die
+# stabile, deterministische id aus dem Bake — überschreiben den Wikipedia-Text,
+# setzen highlight=True. IDs geprüft gegen den aktuellen Bake-Stand.
+KURATIERT = {
+    'haithabu':
+        'Bedeutendste Wikinger-Handelsmetropole Nordeuropas und seit 2018 UNESCO-Welterbe. '
+        'Der halbkreisförmige Ringwall am Haddebyer Noor und das benachbarte Wikinger Museum machen die Epoche greifbar.',
+    'danewerk':
+        'Das größte Bodendenkmal Nordeuropas — ein über Jahrhunderte ausgebautes Wallsystem quer über die Kimbrische Halbinsel. '
+        'Gemeinsam mit Haithabu seit 2018 UNESCO-Welterbe.',
+    'wikinger-museum-haithabu':
+        'Am Fundort von Haithabu zeigt das Museum Originalfunde und rekonstruierte Wikingerhäuser direkt am Wasser.',
+    'schloss-gottorf':
+        'Barockresidenz auf einer Schleiinsel in Schleswig, heute Landesmuseen für Kunst und Archäologie — '
+        'mit dem Nydam-Boot und dem rekonstruierten Gottorfer Globus.',
+    'sankt-petri-dom-zu-schleswig':
+        'Der St.-Petri-Dom prägt die Silhouette Schleswigs; im Inneren der weltberühmte Bordesholmer Altar von Hans Brüggemann (1521).',
+    'heringszaun-kappeln':
+        'Die letzte funktionsfähige Reusenanlage ihrer Art in Europa — ein technisches Kulturdenkmal mitten in Kappeln.',
+    'amanda':
+        'Die Galerieholländermühle Amanda von 1888 ist Kappelns Wahrzeichen und eine der schönsten Mühlen der Region.',
+    'leuchtturm-schleimuende':
+        'Der Leuchtturm Schleimünde bewacht seit 1871 die Einfahrt von der Ostsee in die Schlei; '
+        'die kleine Lotseninsel ist nur per Boot erreichbar.',
+    'schleswig-holm':
+        'Die Fischersiedlung Holm in Schleswig bewahrt mit ihrem Friedhof rund um die zentrale Kapelle das Bild eines alten Fischerdorfs.',
+}
+
+
 DENKMAL_URL = ('https://opendata.schleswig-holstein.de/dataset/'
                '6dbb6602-6199-4389-94cb-22be85440277/resource/'
                '7f6bf27a-9cbc-4931-b9af-9b111e61359d/download/geodaten-denkmalliste-sh.geojson')
@@ -300,6 +329,10 @@ for el in elements:
     }
     p.update(anreichern(t))
     p.update(denkmal_match(name, lon, lat))
+    if p['id'] in KURATIERT:
+        p['text'] = KURATIERT[p['id']]
+        p['text_source'] = 'Redaktion dieschlei.de'
+        p['highlight'] = True
     time.sleep(0.1)
     feats.append({'type': 'Feature',
                   'properties': {k: v for k, v in p.items() if v},
