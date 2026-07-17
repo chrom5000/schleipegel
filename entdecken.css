@@ -263,7 +263,7 @@ dialog form { text-align: right; margin-top: 14px; }
 
 /* ── Themenrouten-Leiste ─────────────────────────────────────── */
 .ed-touren { display: flex; gap: .4rem; flex-wrap: wrap; padding: 0 1rem .5rem; }
-.ed-tour { border: 1px solid var(--linie, #26424f); background: transparent; color: inherit;
+.ed-tour { border: 1px solid var(--line, #26424f); background: transparent; color: inherit;
   border-radius: 999px; padding: .3rem .7rem; font: inherit; font-size: .82rem; cursor: pointer; }
 .ed-tour[aria-pressed="true"] { background: #bfe7ff22; border-color: #45b1e2; }
 
