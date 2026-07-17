@@ -87,7 +87,7 @@
     }
   }
 
-  /* ── Auswahl: Karte ↔ Liste synchron (Detail-Karte folgt in Task 8) */
+  /* ── Auswahl: Karte ↔ Liste synchron, Detailkarte zeigt Foto + Text */
   function waehle(f, ausKarte) {
     state.aktiv = f;
     const p = f.properties, co = f.geometry.coordinates;
@@ -99,6 +99,41 @@
     const idx = $(`#cards li[data-id="${CSS.escape(p.id)}"]`);
     idx?.classList.add('aktiv');
     idx?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    zeigeDetail(f);
+  }
+
+  /* ── Detailkarte: Foto, Beschreibung, Attribution, Aktionen ─────── */
+  function zeigeDetail(f) {
+    const p = f.properties, el = $('#detail');
+    const foto = p.img ? `<img src="${esc(p.img)}" alt="${esc(p.name)}" loading="lazy">` : '';
+    const credit = p.img && (p.img_credit || p.img_license)
+      ? `<p class="ed-quelle">Foto: ${esc(p.img_credit || 'Wikimedia')}${p.img_license ? ' · ' + esc(p.img_license) : ''}</p>` : '';
+    const badges = [KAT[p.cat].einzel, p.kulturdenkmal ? '🛡 geschütztes Kulturdenkmal' : '']
+      .filter(Boolean).map((b) => `<span class="ed-badge">${esc(b)}</span>`).join('');
+    const mehr = p.wiki_url || p.website;
+    el.innerHTML = `
+      <button class="ed-detail-x" id="detail-x" aria-label="Schließen">✕</button>
+      ${foto}
+      <div class="ed-detail-body">
+        <h2>${esc(p.name)}</h2>
+        <div>${badges}</div>
+        ${p.text ? `<p>${esc(p.text)}</p>` : '<p>Für dieses Ziel liegt noch keine Beschreibung vor.</p>'}
+        ${p.kulturdenkmal_text ? `<p class="ed-quelle">${esc(p.kulturdenkmal_text)}</p>` : ''}
+        ${credit}
+        ${p.text ? `<p class="ed-quelle">Text: ${esc(p.text_source || 'OpenStreetMap')}</p>` : ''}
+        <div class="ek-card-akt">
+          <button class="ek-akt ek-akt-route" data-id="${esc(p.id)}">→ Route hierher</button>
+          ${mehr ? `<a class="ek-akt" target="_blank" rel="noopener" href="${esc(mehr)}">Mehr erfahren</a>` : ''}
+        </div>
+      </div>`;
+    el.hidden = false;
+    $('#detail-x').addEventListener('click', schliesseDetail);
+  }
+  function schliesseDetail() {
+    $('#detail').hidden = true;
+    state.aktiv = null;
+    map?.getSource('wahl')?.setData({ type: 'FeatureCollection', features: [] });
+    document.querySelectorAll('.ek-card.aktiv').forEach((n) => n.classList.remove('aktiv'));
   }
 
   /* ── UI ──────────────────────────────────────────────────────── */
