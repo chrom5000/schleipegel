@@ -10,6 +10,7 @@ Wikipedia/Wikimedia (CC BY-SA).
 import json
 import math
 import re
+import time
 import unicodedata
 
 import requests
@@ -86,6 +87,73 @@ def slugify(s):
     return s or 'ort'
 
 
+WP_HDR = {'User-Agent': 'dieschlei.de bake (einkauf@bohillebrand.de)'}
+
+
+def wiki_titel(t):
+    """OSM-Tags → (lang, titel) für die Wikipedia-REST-Summary; bevorzugt de."""
+    wp = t.get('wikipedia', '')
+    if ':' in wp:
+        lang, titel = wp.split(':', 1)
+        if lang == 'de':
+            return 'de', titel
+    qid = t.get('wikidata', '')
+    if qid:
+        try:
+            j = requests.get(f'https://www.wikidata.org/wiki/Special:EntityData/{qid}.json',
+                             headers=WP_HDR, timeout=30).json()
+            sl = j['entities'][qid].get('sitelinks', {})
+            if 'dewiki' in sl:
+                return 'de', sl['dewiki']['title']
+        except Exception as e:              # noqa: BLE001
+            print('wikidata', qid, '→', e)
+    if ':' in wp:                           # nicht-de als Rückfall
+        return wp.split(':', 1)[0], wp.split(':', 1)[1]
+    return None, None
+
+
+def commons_credit(img_url):
+    """Aus einer upload.wikimedia-Thumb-URL Autor + Lizenz von Commons holen."""
+    m = re.search(r'/commons/(?:thumb/)?[0-9a-f]/[0-9a-f]{2}/([^/]+)', img_url)
+    if not m:
+        return '', ''
+    datei = requests.utils.unquote(m.group(1))
+    try:
+        j = requests.get('https://commons.wikimedia.org/w/api.php', headers=WP_HDR, timeout=30,
+                         params={'action': 'query', 'titles': f'File:{datei}', 'prop': 'imageinfo',
+                                 'iiprop': 'extmetadata', 'format': 'json'}).json()
+        page = next(iter(j['query']['pages'].values()))
+        ext = page['imageinfo'][0]['extmetadata']
+        autor = re.sub(r'<[^>]+>', '', ext.get('Artist', {}).get('value', '')).strip()
+        lizenz = ext.get('LicenseShortName', {}).get('value', '').strip()
+        return autor, lizenz
+    except Exception as e:                  # noqa: BLE001
+        print('commons', datei, '→', e)
+        return '', ''
+
+
+def anreichern(t):
+    """→ dict mit text/wiki_url/img/img_credit/img_license (leere Felder weg)."""
+    lang, titel = wiki_titel(t)
+    if not titel:
+        return {}
+    try:
+        s = requests.get(f'https://{lang}.wikipedia.org/api/rest_v1/page/summary/'
+                         + requests.utils.quote(titel.replace(' ', '_'), safe=''),
+                         headers=WP_HDR, timeout=30).json()
+    except Exception as e:                  # noqa: BLE001
+        print('summary', titel, '→', e)
+        return {}
+    out = {'text': (s.get('extract') or '').strip(),
+           'text_source': 'Wikipedia (CC BY-SA 4.0)',
+           'wiki_url': s.get('content_urls', {}).get('desktop', {}).get('page', '')}
+    thumb = (s.get('thumbnail') or {}).get('source') or (s.get('originalimage') or {}).get('source')
+    if thumb:
+        autor, lizenz = commons_credit(thumb)
+        out.update(img=thumb, img_credit=autor, img_license=lizenz)
+    return {k: v for k, v in out.items() if v}
+
+
 feats, skipped, seen = [], 0, {}
 elements = sorted(r.json()['elements'], key=lambda el: (
     (el.get('tags', {}).get('name') or ''),
@@ -113,6 +181,8 @@ for el in elements:
         'wikipedia': t.get('wikipedia', ''),
         'website': t.get('website') or t.get('contact:website') or '',
     }
+    p.update(anreichern(t))
+    time.sleep(0.1)
     feats.append({'type': 'Feature',
                   'properties': {k: v for k, v in p.items() if v},
                   'geometry': {'type': 'Point',
