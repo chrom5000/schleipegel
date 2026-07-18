@@ -8,7 +8,7 @@
 (() => {
   const BUILD = document.querySelector('script[src^="entdecken.js"]')?.src.split('v=')[1] ?? 'dev';
   const $ = (s) => document.querySelector(s);
-  const { esc, distM, fmtEntf, MAX_BOUNDS } = window.SchleiMap;
+  const { esc, sicherHref, distM, fmtEntf, MAX_BOUNDS } = window.SchleiMap;
 
   const KAT = {
     wikinger: { name: 'Wikinger & Archäologie', einzel: 'Wikinger / Archäologie', farbe: '#d9a441' },
@@ -140,7 +140,7 @@
         ${p.text ? `<p class="ed-quelle">Text: ${esc(p.text_source || 'OpenStreetMap')}</p>` : ''}
         <div class="ek-card-akt">
           <button class="ek-akt ek-akt-route" data-id="${esc(p.id)}">→ Route hierher</button>
-          ${mehr ? `<a class="ek-akt" target="_blank" rel="noopener" href="${esc(mehr)}">Mehr erfahren</a>` : ''}
+          ${mehr ? `<a class="ek-akt" target="_blank" rel="noopener" href="${esc(sicherHref(mehr))}">Mehr erfahren</a>` : ''}
         </div>
       </div>`;
     el.hidden = false;
@@ -227,7 +227,9 @@
       const b = router.nahKnoten(...ziele[i + 1].geometry.coordinates, route.profil);
       const weg = a >= 0 && b >= 0 ? router.astar(a, b, v, route.profil === 'auto') : null;
       if (!weg) { fehlend++; continue; }
-      coords.push(...(coords.length ? weg.coords.slice(1) : weg.coords));
+      const tail = coords[coords.length - 1];
+      const verbindet = tail && tail[0] === weg.coords[0][0] && tail[1] === weg.coords[0][1];
+      coords.push(...(verbindet ? weg.coords.slice(1) : weg.coords));
       dist += weg.dist; dauer += weg.dauer;
     }
     map.getSource('route').setData({ type: 'FeatureCollection',

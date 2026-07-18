@@ -12,6 +12,8 @@
   const MAX_BOUNDS = [[9.35, 54.38], [10.35, 54.80]];
 
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // Nur sichere URL-Schemata als Link zulassen (OSM-Tags sind ungeprüft) — sonst toter Link.
+  const sicherHref = (url) => /^(https?:|mailto:|tel:)/i.test((url || '').trim()) ? url : '#';
   const distM = (a, b) => Math.hypot(
     (b[0] - a[0]) * 111320 * Math.cos(a[1] * Math.PI / 180), (b[1] - a[1]) * 110540);
 
@@ -458,5 +460,5 @@
       zeigeRoutePanel, schliesseRoute, setStart, berechneRoute, pickAt, bindRoute };
   }
 
-  window.SchleiMap = { esc, distM, fmtDauer, fmtEntf, MAX_BOUNDS, GRAPH_BBOX, baseStyle, createRouting };
+  window.SchleiMap = { esc, sicherHref, distM, fmtDauer, fmtEntf, MAX_BOUNDS, GRAPH_BBOX, baseStyle, createRouting };
 })();

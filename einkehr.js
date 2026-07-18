@@ -11,7 +11,7 @@
 (() => {
   const BUILD = document.querySelector('script[src^="einkehr.js"]')?.src.split('v=')[1] ?? 'dev';
   const $ = (s) => document.querySelector(s);
-  const { esc, distM, fmtDauer, fmtEntf, MAX_BOUNDS } = window.SchleiMap;
+  const { esc, sicherHref, distM, fmtEntf, MAX_BOUNDS } = window.SchleiMap;
 
   const KAT = {
     restaurant: { name: 'Restaurants', einzel: 'Restaurant', farbe: '#ffb057' },
@@ -102,7 +102,7 @@
       a.push(`<a class="ek-akt ek-akt-booking" target="_blank" rel="noopener"
         href="https://www.booking.com/searchresults.de.html?ss=${encodeURIComponent(`${p.name} ${p.ort || 'Schlei'}`)}">Booking</a>`);
     }
-    if (p.website) a.push(`<a class="ek-akt" target="_blank" rel="noopener" href="${esc(p.website)}">Website</a>`);
+    if (p.website) a.push(`<a class="ek-akt" target="_blank" rel="noopener" href="${esc(sicherHref(p.website))}">Website</a>`);
     if (p.phone) a.push(`<a class="ek-akt" href="tel:${esc(p.phone.replace(/\s/g, ''))}">Anrufen</a>`);
     return a.join('');
   }
