@@ -89,13 +89,43 @@ Namenswechseln; Klassenindex in bake_wege.py und `KLASSE_LABEL`/`PROFILE`
 in einkehr.js müssen zusammenpassen. Start außerhalb der Graph-Bbox →
 Google-Maps-Fallback-Link. `orte_labels.json` = Ortsnamen-Layer.
 
+## Entdecken (`entdecken.html` + `entdecken.js` + `entdecken.css`)
+
+Kuratiertes Sehenswürdigkeiten-Verzeichnis (192 Ziele, 6 Kategorien) aus
+`entdecken.json`, gebacken via `scripts/bake_entdecken.py`: OSM-Overpass
+(historic/tourism/man_made/Kirchen im Schlei-Umkreis; wiki-verlinkte Objekte
+werden auch ohne `name`-Tag aufgenommen, der Name kommt dann aus
+Wikipedia/Wikidata) + Wikipedia-REST-Summary für Kurztext und Foto +
+Commons-`imageinfo` für Autor/Lizenz + Abgleich gegen die amtliche
+SH-Denkmalliste fürs `kulturdenkmal`-Badge (GeoJSON via CKAN,
+**EPSG:25832 → WGS84 mit `pyproj`**; 37-MB-Rohdatei gitignored, wird bei
+Bedarf automatisch heruntergeladen). Stabile, deterministische `id` = Namensslug
+(durchgehende Referenz für Klick-Matching, Themenrouten, Routing-Ziel). 9
+kuratierte Highlight-Einführungen (`KURATIERT` in bake_entdecken.py, ID-exakt)
+überschreiben den Wikipedia-Text und setzen `highlight`.
+
+**Wichtig:** Kartenstil, Hilfsfunktionen und der A\*-Routing-Block liegen im
+gemeinsamen Modul **`schlei-map.js`** (`window.SchleiMap`: `baseStyle(build)` +
+Helfer + `createRouting({build, getMap})`), das **einkehr.js UND entdecken.js**
+laden — Änderungen dort wirken auf beide Seiten. `regatta.js` bleibt bewusst
+eine eigenständige Kopie (siehe oben).
+
+Themenrouten (`ROUTEN` in entdecken.js, z. B. „Wikinger & Welterbe") heben ihre
+Ziele auf der Karte nummeriert hervor (eigene Quelle `touren`, gestrichelte
+Linie); „Tour abfahren" verkettet sie zu einem mehrbeinigen A\*-Streckenzug über
+`router.astar()` und meldet Gesamtdistanz/-dauer im Routenpanel (Abschnitte ohne
+Wegverbindung werden übersprungen statt die Tour abzubrechen). Foto-Detailkarte
+zeigt Bild, Kurztext, Kategorie- und ggf. Kulturdenkmal-Badge sowie
+Quellen-/Lizenznennung. Debug-Handle: `window.ENTDECKEN`.
+
 ## Reichweitenmessung
 
-GoatCounter (cookielos, keine IP-Speicherung) auf allen vier Seiten — das Snippet
+GoatCounter (cookielos, keine IP-Speicherung) auf allen fünf Seiten — das Snippet
 injiziert das Script **nur bei `location.hostname === 'dieschlei.de'`**, damit
 LAN-Vorschau und Headless-Tests die Statistik nicht verzerren. Dashboard:
 mbohillebrand.goatcounter.com. Datenschutz-Absatz steht im Impressum (index.html);
-bei neuen Seiten Snippet mitnehmen.
+bei neuen Seiten Snippet mitnehmen. Der Deploy-sed für `__BUILD__` schließt
+`entdecken.html` mit ein (siehe Regattaplaner-Abschnitt).
 
 ## Mobile
 
@@ -107,6 +137,7 @@ SVG-Texte skalieren mit der Karte und wären auf Telefonbreite unlesbar. Muster:
 - **Bright Sky** (DWD): Windmessung Station Schleswig `04466`, `/alerts` für amtliche Warnungen.
 - **Open-Meteo**: ICON-D2 (Revierwind + Wetter an 7 Punkten, Modellhorizont ~48 h — Zeitraster auf vorhandene Werte filtern) und Marine-API (Ostsee vor Schleimünde).
 - **Badewasser SH**: kein CORS → GitHub-Actions-Cron (`scripts/fetch_badewasser.py`) schreibt `badewasser.json` ins Repo.
+- **Wikipedia/Wikimedia** (CC BY-SA) und **Denkmalliste SH** (CC BY 4.0): nur Bake-Zeit, für `entdecken.json` (siehe Entdecken-Abschnitt).
 
 Verworfen nach Prüfung (kein CORS o. ä.): WarnWetter/bund.dev, UBA-Luftqualität, MUDAB. Details in der Memory-Datei `schlei-infocenter-projekt.md`.
 
