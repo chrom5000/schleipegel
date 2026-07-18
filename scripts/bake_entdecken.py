@@ -240,7 +240,7 @@ ZUSATZ_ORTE = [
      'text': 'Altes Fischerdorf direkt an der Schleimündung, zwischen Ostsee und Noor. Bootshafen, reetgedeckte Katen '
              'und der Blick über das Naturschutzgebiet Schleimündung machen den Reiz aus.'},
     {'id': 'missunde', 'name': 'Missunde', 'cat': 'denkmal', 'lon': 9.7358, 'lat': 54.5147,
-     'wiki': 'Missunde',
+     'wiki': 'Gefecht von Missunde',
      'text': 'Historische Engstelle der Schlei und uralte Fährstelle — Schauplatz des Gefechts bei Missunde 1864. '
              'Noch heute quert hier eine kleine Fähre den Fluss.'},
     {'id': 'sieseby', 'name': 'Sieseby', 'cat': 'denkmal', 'lon': 9.8686, 'lat': 54.5533,
@@ -326,7 +326,7 @@ def anreichern(t):
            'text_source': 'Wikipedia (CC BY-SA 4.0)',
            'wiki_url': s.get('content_urls', {}).get('desktop', {}).get('page', '')}
     thumb = (s.get('thumbnail') or {}).get('source') or (s.get('originalimage') or {}).get('source')
-    if thumb:
+    if thumb and '.svg' not in thumb.lower():        # Wappen/Logos (SVG) sind keine Fotos
         autor, lizenz = commons_credit(thumb)
         out.update(img=thumb, img_credit=autor, img_license=lizenz)
     return {k: v for k, v in out.items() if v}
