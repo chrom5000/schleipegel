@@ -166,7 +166,7 @@ dialog form { text-align: right; margin-top: 14px; }
 @media (max-width: 700px) {
   .bf-top { flex-wrap: wrap; row-gap: 8px; }
   .site-tabs { order: 10; width: 100%; }
-  .site-tabs a { flex: 1; text-align: center; padding: 7px 4px; font-size: .74rem; }
+  .site-tabs a { flex: 1; text-align: center; padding: 7px 2px; font-size: .72rem; }
   .bf-brand-name { display: none; }
   .bf-main { padding: 4px 14px 104px; }
   .bf-now { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }

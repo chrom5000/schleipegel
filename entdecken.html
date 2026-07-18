@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Einkehr — Schlei-Infocenter</title>
-  <meta name="description" content="Restaurants, Cafés, Unterkünfte, Camping und Häfen rund um die Schlei — freies OSM-Verzeichnis mit Karte und direkten Links zu Bewertungen bei Google und Booking.">
+  <title>Entdecken — Schlei-Infocenter</title>
+  <meta name="description" content="Sehenswürdigkeiten, Wikinger-Welterbe und Geschichte rund um die Schlei — mit Karte, Fotos und Routenplanung.">
   <meta name="theme-color" content="#0d1b22">
-  <link rel="canonical" href="https://dieschlei.de/einkehr.html">
+  <link rel="canonical" href="https://dieschlei.de/entdecken.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Schlei-Infocenter">
   <meta property="og:locale" content="de_DE">
-  <meta property="og:url" content="https://dieschlei.de/einkehr.html">
-  <meta property="og:title" content="Einkehr — Schlei-Infocenter">
-  <meta property="og:description" content="Restaurants, Cafés, Unterkünfte, Camping und Häfen rund um die Schlei — mit Karte, Routenplanung und Links zu Bewertungen.">
+  <meta property="og:url" content="https://dieschlei.de/entdecken.html">
+  <meta property="og:title" content="Entdecken — Schlei-Infocenter">
+  <meta property="og:description" content="Sehenswürdigkeiten, Wikinger-Welterbe und Geschichte rund um die Schlei — mit Karte, Fotos und Routenplanung.">
   <meta property="og:image" content="https://dieschlei.de/og.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -23,10 +23,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="vendor/maplibre-gl.css?v=__BUILD__">
-  <link rel="stylesheet" href="einkehr.css?v=__BUILD__">
+  <link rel="stylesheet" href="entdecken.css?v=__BUILD__">
   <script src="vendor/maplibre-gl.js?v=__BUILD__" defer></script>
   <script src="schlei-map.js?v=__BUILD__" defer></script>
-  <script src="einkehr.js?v=__BUILD__" defer></script>
+  <script src="entdecken.js?v=__BUILD__" defer></script>
   <script>
     // Cookielose Reichweitenmessung (GoatCounter): keine Cookies, keine
     // IP-Speicherung, respektiert "Do Not Track" — und zählt nur auf der
@@ -47,13 +47,13 @@
       <span class="ek-brand-arrow" aria-hidden="true">←</span>
       <span class="ek-brand-name">die<b>schlei</b>.de</span>
     </a>
-    <h1 class="ek-title">Ein<span>kehr</span></h1>
+    <h1 class="ek-title">Ent<span>decken</span></h1>
     <nav class="site-tabs" aria-label="Bereiche">
       <a href="index.html">Infocenter</a>
       <a href="regatta.html">&#9873; Regatta</a>
       <a href="angeln.html">&#10547; Bei&szlig;fenster</a>
-      <a href="einkehr.html" aria-current="page">&#8962; Einkehr</a>
-      <a href="entdecken.html">&#9906; Entdecken</a>
+      <a href="einkehr.html">&#8962; Einkehr</a>
+      <a href="entdecken.html" aria-current="page">&#9906; Entdecken</a>
     </nav>
     <button id="btn-info" class="ek-btn ek-btn-round" title="Über dieses Verzeichnis" aria-label="Informationen">i</button>
   </header>
@@ -61,14 +61,16 @@
   <div class="ek-layout">
     <aside class="ek-liste" id="panel-liste" aria-label="Ortsliste">
       <div class="ek-suchzeile">
-        <input type="search" id="suche" placeholder="Name, Ort oder Küche suchen …"
+        <input type="search" id="suche" placeholder="Name oder Ort suchen …"
                autocomplete="off" aria-label="Verzeichnis durchsuchen">
       </div>
+      <div class="ed-touren" id="touren" role="group" aria-label="Themenrouten"></div>
       <div class="ek-chips" id="chips" role="group" aria-label="Kategorie filtern"></div>
       <p class="ek-count" id="count">Verzeichnis wird geladen …</p>
       <ol class="ek-cards" id="cards"></ol>
-      <p class="ek-fuss">Daten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende —
-        ohne Gewähr auf Vollständigkeit und Aktualität. Bewertungen extern bei Google bzw. Booking.</p>
+      <p class="ek-fuss">Daten © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>-Mitwirkende ·
+        Denkmaldaten © Land Schleswig-Holstein · Texte &amp; Fotos: Auszüge aus Wikipedia/Wikimedia (CC BY-SA, mit Namensnennung) —
+        ohne Gewähr auf Vollständigkeit. Nicht zur Navigation.</p>
     </aside>
     <div id="map" aria-label="Karte der Orte rund um die Schlei"></div>
   </div>
@@ -77,6 +79,9 @@
 
   <p class="ek-pick-hinweis" id="pick-hinweis" hidden aria-live="polite">
     👆 Tippe den <b>Startpunkt</b> auf der Karte an <small>(Esc bricht ab)</small></p>
+
+  <!-- Detailkarte (Foto + Beschreibung), erscheint bei Auswahl -->
+  <section class="ed-detail" id="detail" hidden aria-label="Details zur Sehenswürdigkeit"></section>
 
   <!-- Routen-Panel (erscheint bei „Route hierher") -->
   <section class="ek-route" id="route-panel" hidden aria-label="Routenplanung">
@@ -101,18 +106,19 @@
   </section>
 
   <dialog id="dlg-info" aria-labelledby="dlg-title">
-    <h2 id="dlg-title">Über das Einkehr-Verzeichnis</h2>
+    <h2 id="dlg-title">Über das Entdecken-Verzeichnis</h2>
     <p>Alle Einträge stammen aus <strong>OpenStreetMap</strong> — dem freien Karten-Datenbestand,
     den auch die Schlei-Karte dieser Seite nutzt. Gezeigt wird, was dort mit Name erfasst ist:
-    Restaurants, Cafés &amp; Eis, Imbisse &amp; Kneipen, Unterkünfte, Camping- und Wohnmobilplätze
-    sowie Häfen im Umkreis von 3&nbsp;km um die Schlei.</p>
-    <p><strong>Bewertungen zeigen wir bewusst nicht selbst</strong> — Google und Booking erlauben
-    das ohne kostenpflichtige Schnittstellen nicht. Stattdessen führt jeder Eintrag mit einem
-    Klick direkt zu den Bewertungen bei Google bzw. zur Unterkunft bei Booking.</p>
+    Kirchen, Schlösser &amp; Gutshöfe, Museen, Technikdenkmäler sowie Wikinger-Fundstätten aus
+    dem Umkreis der Schlei — vom Danewerk bis Haithabu.</p>
+    <p><strong>Denkmal-Status</strong> stammt aus dem Abgleich mit der amtlichen Denkmalliste
+    Schleswig-Holstein. <strong>Texte und Fotos</strong> sind, wo vorhanden, kuratierte Auszüge
+    aus Wikipedia bzw. Wikimedia Commons (CC BY-SA, mit Namensnennung).</p>
     <p>Ein Ort fehlt oder stimmt nicht? Das lässt sich von jedem direkt in
     <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a>
     korrigieren — beim nächsten Daten-Backen ist es dann auch hier.</p>
-    <p class="ek-dlg-src">Daten © OpenStreetMap-Mitwirkende (ODbL) · Relief: BSH (DL-DE-BY-2.0) · Terrain Tiles</p>
+    <p class="ek-dlg-src">Daten © OpenStreetMap-Mitwirkende (ODbL) · Denkmaldaten © Land Schleswig-Holstein ·
+      Texte &amp; Fotos: Wikipedia/Wikimedia (CC BY-SA) · Relief: BSH (DL-DE-BY-2.0) · Terrain Tiles</p>
     <form method="dialog"><button class="ek-btn">Verstanden</button></form>
   </dialog>
 

@@ -495,7 +495,7 @@ a { color: inherit; }
 }
 @media (max-width: 700px) {
   .site-tabs { width: 100%; }
-  .site-tabs a { flex: 1; text-align: center; padding: 8px 6px; font-size: 12.5px; }
+  .site-tabs a { flex: 1; text-align: center; padding: 7px 2px; font-size: 11px; }
 }
 
 /* hero3d-Datenmarker: dunkle Chips, lesbar auf 3D und Seekarte */
