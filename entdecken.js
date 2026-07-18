@@ -16,7 +16,7 @@
     schloss:  { name: 'Schlösser & Herrenhäuser', einzel: 'Schloss / Herrenhaus',   farbe: '#ff8f7a' },
     museum:   { name: 'Museen & Kultur',          einzel: 'Museum',                 farbe: '#45b1e2' },
     technik:  { name: 'Technik & Wahrzeichen',    einzel: 'Technik / Wahrzeichen',  farbe: '#7fd4a8' },
-    denkmal:  { name: 'Denkmäler & Aussicht',     einzel: 'Denkmal / Aussicht',     farbe: '#9db4c0' },
+    denkmal:  { name: 'Denkmäler & Orte',         einzel: 'Denkmal / Ort',          farbe: '#9db4c0' },
   };
 
   const state = { orte: [], kat: 'alle', suche: '', tour: null, aktiv: null };

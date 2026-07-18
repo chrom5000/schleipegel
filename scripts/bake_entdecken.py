@@ -92,6 +92,16 @@ def kategorie(t):
     return 'denkmal'                        # monument, memorial, boundary_stone, ruins, artwork, attraction
 
 
+def ist_rauschanfaellig(t):
+    """Tags, die ohne Bedeutungsnachweis (Wikipedia/Kulturdenkmal) Rauschen sind."""
+    h = t.get('historic', '')
+    tou = t.get('tourism', '')
+    mm = t.get('man_made', '')
+    return (tou in ('artwork', 'attraction', 'viewpoint')
+            or h in ('memorial', 'monument', 'boundary_stone', 'ruins')
+            or mm == 'tower')
+
+
 def slugify(s):
     s = s.lower()
     s = s.replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
@@ -218,6 +228,28 @@ KURATIERT = {
 }
 
 
+# Bedeutende Orte/Ensembles, die OSM nur als place=* führt (nicht historic/tourism) —
+# von Hand als kuratierte Ziele. Foto/Attribution kommen aus Wikipedia.
+ZUSATZ_ORTE = [
+    {'id': 'arnis', 'name': 'Arnis', 'cat': 'denkmal', 'lon': 9.9339, 'lat': 54.6297,
+     'wiki': 'Arnis',
+     'text': 'Mit rund 300 Einwohnern die kleinste Stadt Deutschlands, 1667 von Glaubensflüchtlingen gegründet. '
+             'Die schmale Schifferstadt reiht Kapitänshäuser und die barocke Schifferkirche entlang einer einzigen Halbinsel in der Schlei.'},
+    {'id': 'maasholm', 'name': 'Maasholm', 'cat': 'denkmal', 'lon': 10.0106, 'lat': 54.6862,
+     'wiki': 'Maasholm',
+     'text': 'Altes Fischerdorf direkt an der Schleimündung, zwischen Ostsee und Noor. Bootshafen, reetgedeckte Katen '
+             'und der Blick über das Naturschutzgebiet Schleimündung machen den Reiz aus.'},
+    {'id': 'missunde', 'name': 'Missunde', 'cat': 'denkmal', 'lon': 9.7358, 'lat': 54.5147,
+     'wiki': 'Missunde',
+     'text': 'Historische Engstelle der Schlei und uralte Fährstelle — Schauplatz des Gefechts bei Missunde 1864. '
+             'Noch heute quert hier eine kleine Fähre den Fluss.'},
+    {'id': 'sieseby', 'name': 'Sieseby', 'cat': 'denkmal', 'lon': 9.8686, 'lat': 54.5533,
+     'wiki': 'Sieseby',
+     'text': 'Nahezu vollständig erhaltenes Gutsdorf am Südufer: reetgedeckte Katen, Kapitänshäuser und die Feldsteinkirche '
+             'fügen sich zu einem denkmalgeschützten Ensemble.'},
+]
+
+
 DENKMAL_URL = ('https://opendata.schleswig-holstein.de/dataset/'
                '6dbb6602-6199-4389-94cb-22be85440277/resource/'
                '7f6bf27a-9cbc-4931-b9af-9b111e61359d/download/geodaten-denkmalliste-sh.geojson')
@@ -300,7 +332,7 @@ def anreichern(t):
     return {k: v for k, v in out.items() if v}
 
 
-feats, skipped, seen = [], 0, {}
+feats, skipped, rausch, seen = [], 0, 0, {}
 elements = sorted(r.json()['elements'], key=lambda el: (
     (el.get('tags', {}).get('name') or ''),
     el.get('lat') or el.get('center', {}).get('lat') or 0,
@@ -333,11 +365,27 @@ for el in elements:
         p['text'] = KURATIERT[p['id']]
         p['text_source'] = 'Redaktion dieschlei.de'
         p['highlight'] = True
+    if ist_rauschanfaellig(t) and not (p.get('wikidata') or p.get('wikipedia')
+                                       or p.get('kulturdenkmal') or p.get('highlight')):
+        rausch += 1
+        continue
     time.sleep(0.1)
     feats.append({'type': 'Feature',
                   'properties': {k: v for k, v in p.items() if v},
                   'geometry': {'type': 'Point',
                                'coordinates': [round(lon, 6), round(lat, 6)]}})
+
+for o in ZUSATZ_ORTE:
+    enr = anreichern({'wikipedia': 'de:' + o['wiki']})   # holt Foto + wiki_url + Credit (Text überschreiben wir)
+    p = {'id': o['id'], 'name': o['name'], 'cat': o['cat'],
+         'text': o['text'], 'text_source': 'Redaktion dieschlei.de', 'highlight': True}
+    for k in ('img', 'img_credit', 'img_license', 'wiki_url'):
+        if enr.get(k):
+            p[k] = enr[k]
+    p.update(denkmal_match(o['name'], o['lon'], o['lat']))   # ggf. Kulturdenkmal-Badge
+    feats.append({'type': 'Feature',
+                  'properties': {k: v for k, v in p.items() if v},
+                  'geometry': {'type': 'Point', 'coordinates': [round(o['lon'], 6), round(o['lat'], 6)]}})
 
 feats.sort(key=lambda f: f['properties']['name'])
 json.dump({'type': 'FeatureCollection', 'features': feats},
@@ -345,4 +393,4 @@ json.dump({'type': 'FeatureCollection', 'features': feats},
 kat = {}
 for f in feats:
     kat[f['properties']['cat']] = kat.get(f['properties']['cat'], 0) + 1
-print(len(feats), 'Ziele:', kat, '| außerhalb', MAX_DIST_M, 'm:', skipped)
+print(len(feats), 'Ziele:', kat, '| außerhalb', MAX_DIST_M, 'm:', skipped, '| Rauschen gefiltert:', rausch)
