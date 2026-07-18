@@ -92,16 +92,6 @@ def kategorie(t):
     return 'denkmal'                        # monument, memorial, boundary_stone, ruins, artwork, attraction
 
 
-def ist_rauschanfaellig(t):
-    """Tags, die ohne Bedeutungsnachweis (Wikipedia/Kulturdenkmal) Rauschen sind."""
-    h = t.get('historic', '')
-    tou = t.get('tourism', '')
-    mm = t.get('man_made', '')
-    return (tou in ('artwork', 'attraction', 'viewpoint')
-            or h in ('memorial', 'monument', 'boundary_stone', 'ruins')
-            or mm == 'tower')
-
-
 def slugify(s):
     s = s.lower()
     s = s.replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
@@ -365,8 +355,11 @@ for el in elements:
         p['text'] = KURATIERT[p['id']]
         p['text_source'] = 'Redaktion dieschlei.de'
         p['highlight'] = True
-    if ist_rauschanfaellig(t) and not (p.get('wikidata') or p.get('wikipedia')
-                                       or p.get('kulturdenkmal') or p.get('highlight')):
+    # Rauschfilter: nur die Sammelkategorie "denkmal" (Kunstwerke, Klein-Denkmäler,
+    # Aussichtspunkte) ausdünnen — behalten mit Wikipedia-Bezug, Kulturdenkmal oder
+    # kuratiert. Kirche/Schloss/Museum/Technik/Wikinger sind inhärent bedeutend, bleiben.
+    if p['cat'] == 'denkmal' and not (p.get('wikidata') or p.get('wikipedia')
+                                      or p.get('kulturdenkmal') or p.get('highlight')):
         rausch += 1
         continue
     time.sleep(0.1)
