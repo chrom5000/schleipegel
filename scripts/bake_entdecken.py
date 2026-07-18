@@ -189,32 +189,19 @@ def _koord(geom):
     return lon, lat
 
 
-# Kuratierte Einführungen für die Flaggschiffe (Redaktion), verknüpft über die
-# stabile, deterministische id aus dem Bake — überschreiben den Wikipedia-Text,
-# setzen highlight=True. IDs geprüft gegen den aktuellen Bake-Stand.
+# Flaggschiffe: markieren nur das Highlight. Die Beschreibung kommt IMMER aus
+# Wikipedia (siehe anreichern). Für Objekte ohne OSM-Wiki-Tag steht hier ein
+# expliziter Artikeltitel, damit auch sie einen Wikipedia-Text bekommen.
 KURATIERT = {
-    'haithabu':
-        'Bedeutendste Wikinger-Handelsmetropole Nordeuropas und seit 2018 UNESCO-Welterbe. '
-        'Der halbkreisförmige Ringwall am Haddebyer Noor und das benachbarte Wikinger Museum machen die Epoche greifbar.',
-    'danewerk':
-        'Das größte Bodendenkmal Nordeuropas — ein über Jahrhunderte ausgebautes Wallsystem quer über die Kimbrische Halbinsel. '
-        'Gemeinsam mit Haithabu seit 2018 UNESCO-Welterbe.',
-    'wikinger-museum-haithabu':
-        'Am Fundort von Haithabu zeigt das Museum Originalfunde und rekonstruierte Wikingerhäuser direkt am Wasser.',
-    'schloss-gottorf':
-        'Barockresidenz auf einer Schleiinsel in Schleswig, heute Landesmuseen für Kunst und Archäologie — '
-        'mit dem Nydam-Boot und dem rekonstruierten Gottorfer Globus.',
-    'sankt-petri-dom-zu-schleswig':
-        'Der St.-Petri-Dom prägt die Silhouette Schleswigs; im Inneren der weltberühmte Bordesholmer Altar von Hans Brüggemann (1521).',
-    'heringszaun-kappeln':
-        'Die letzte funktionsfähige Reusenanlage ihrer Art in Europa — ein technisches Kulturdenkmal mitten in Kappeln.',
-    'amanda':
-        'Die Galerieholländermühle Amanda von 1888 ist Kappelns Wahrzeichen und eine der schönsten Mühlen der Region.',
-    'leuchtturm-schleimuende':
-        'Der Leuchtturm Schleimünde bewacht seit 1871 die Einfahrt von der Ostsee in die Schlei; '
-        'die kleine Lotseninsel ist nur per Boot erreichbar.',
-    'schleswig-holm':
-        'Die Fischersiedlung Holm in Schleswig bewahrt mit ihrem Friedhof rund um die zentrale Kapelle das Bild eines alten Fischerdorfs.',
+    'haithabu': None,
+    'danewerk': None,
+    'wikinger-museum-haithabu': None,
+    'schloss-gottorf': None,
+    'sankt-petri-dom-zu-schleswig': None,
+    'heringszaun-kappeln': 'Heringszaun',
+    'amanda': None,
+    'leuchtturm-schleimuende': None,
+    'schleswig-holm': 'Holm (Schleswig)',
 }
 
 
@@ -222,21 +209,13 @@ KURATIERT = {
 # von Hand als kuratierte Ziele. Foto/Attribution kommen aus Wikipedia.
 ZUSATZ_ORTE = [
     {'id': 'arnis', 'name': 'Arnis', 'cat': 'denkmal', 'lon': 9.9339, 'lat': 54.6297,
-     'wiki': 'Arnis',
-     'text': 'Mit rund 300 Einwohnern die kleinste Stadt Deutschlands, 1667 von Glaubensflüchtlingen gegründet. '
-             'Die schmale Schifferstadt reiht Kapitänshäuser und die barocke Schifferkirche entlang einer einzigen Halbinsel in der Schlei.'},
+     'wiki': 'Arnis'},
     {'id': 'maasholm', 'name': 'Maasholm', 'cat': 'denkmal', 'lon': 10.0106, 'lat': 54.6862,
-     'wiki': 'Maasholm',
-     'text': 'Altes Fischerdorf direkt an der Schleimündung, zwischen Ostsee und Noor. Bootshafen, reetgedeckte Katen '
-             'und der Blick über das Naturschutzgebiet Schleimündung machen den Reiz aus.'},
+     'wiki': 'Maasholm'},
     {'id': 'missunde', 'name': 'Missunde', 'cat': 'denkmal', 'lon': 9.7358, 'lat': 54.5147,
-     'wiki': 'Gefecht von Missunde',
-     'text': 'Historische Engstelle der Schlei und uralte Fährstelle — Schauplatz des Gefechts bei Missunde 1864. '
-             'Noch heute quert hier eine kleine Fähre den Fluss.'},
+     'wiki': 'Gefecht von Missunde'},
     {'id': 'sieseby', 'name': 'Sieseby', 'cat': 'denkmal', 'lon': 9.8686, 'lat': 54.5533,
-     'wiki': 'Sieseby',
-     'text': 'Nahezu vollständig erhaltenes Gutsdorf am Südufer: reetgedeckte Katen, Kapitänshäuser und die Feldsteinkirche '
-             'fügen sich zu einem denkmalgeschützten Ensemble.'},
+     'wiki': 'Sieseby'},
 ]
 
 
@@ -352,9 +331,10 @@ for el in elements:
     p.update(anreichern(t))
     p.update(denkmal_match(name, lon, lat))
     if p['id'] in KURATIERT:
-        p['text'] = KURATIERT[p['id']]
-        p['text_source'] = 'Redaktion dieschlei.de'
         p['highlight'] = True
+        titel = KURATIERT[p['id']]
+        if not p.get('text') and titel:          # kein OSM-Wiki-Tag → expliziten Artikel holen
+            p.update(anreichern({'wikipedia': 'de:' + titel}))
     # Rauschfilter: nur die Sammelkategorie "denkmal" (Kunstwerke, Klein-Denkmäler,
     # Aussichtspunkte) ausdünnen — behalten mit Wikipedia-Bezug, Kulturdenkmal oder
     # kuratiert. Kirche/Schloss/Museum/Technik/Wikinger sind inhärent bedeutend, bleiben.
@@ -369,13 +349,10 @@ for el in elements:
                                'coordinates': [round(lon, 6), round(lat, 6)]}})
 
 for o in ZUSATZ_ORTE:
-    enr = anreichern({'wikipedia': 'de:' + o['wiki']})   # holt Foto + wiki_url + Credit (Text überschreiben wir)
-    p = {'id': o['id'], 'name': o['name'], 'cat': o['cat'],
-         'text': o['text'], 'text_source': 'Redaktion dieschlei.de', 'highlight': True}
-    for k in ('img', 'img_credit', 'img_license', 'wiki_url'):
-        if enr.get(k):
-            p[k] = enr[k]
-    p.update(denkmal_match(o['name'], o['lon'], o['lat']))   # ggf. Kulturdenkmal-Badge
+    enr = anreichern({'wikipedia': 'de:' + o['wiki']})   # Text + Foto + wiki_url + Credit aus Wikipedia
+    p = {'id': o['id'], 'name': o['name'], 'cat': o['cat'], 'highlight': True}
+    p.update(enr)                                         # text/text_source/img/... aus Wikipedia
+    p.update(denkmal_match(o['name'], o['lon'], o['lat']))
     feats.append({'type': 'Feature',
                   'properties': {k: v for k, v in p.items() if v},
                   'geometry': {'type': 'Point', 'coordinates': [round(o['lon'], 6), round(o['lat'], 6)]}})

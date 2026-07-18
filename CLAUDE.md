@@ -101,8 +101,9 @@ SH-Denkmalliste fürs `kulturdenkmal`-Badge (GeoJSON via CKAN,
 **EPSG:25832 → WGS84 mit `pyproj`**; 37-MB-Rohdatei gitignored, wird bei
 Bedarf automatisch heruntergeladen). Stabile, deterministische `id` = Namensslug
 (durchgehende Referenz für Klick-Matching, Themenrouten, Routing-Ziel). 9
-kuratierte Highlight-Einführungen (`KURATIERT` in bake_entdecken.py, ID-exakt)
-überschreiben den Wikipedia-Text und setzen `highlight`.
+Flaggschiffe (`KURATIERT` in bake_entdecken.py, ID-exakt) setzen nur `highlight`
+für die prominente Sortierung — Beschreibungstexte kommen durchgängig aus dem
+Wikipedia-Extract, keine Redaktionstexte (Faktentreue).
 
 **Wichtig:** Kartenstil, Hilfsfunktionen und der A\*-Routing-Block liegen im
 gemeinsamen Modul **`schlei-map.js`** (`window.SchleiMap`: `baseStyle(build)` +
