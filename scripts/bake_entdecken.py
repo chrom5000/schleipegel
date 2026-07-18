@@ -216,6 +216,8 @@ ZUSATZ_ORTE = [
      'wiki': 'Gefecht von Missunde'},
     {'id': 'sieseby', 'name': 'Sieseby', 'cat': 'denkmal', 'lon': 9.8686, 'lat': 54.5533,
      'wiki': 'Sieseby'},
+    {'id': 'schlei-seesperrwerk', 'name': 'Schlei-Seesperrwerk', 'cat': 'wikinger', 'lon': 9.6449, 'lat': 54.5143,
+     'wiki': 'Schlei-Seesperrwerk'},   # Wikinger-Sperranlage (Danewerk/UNESCO), unter Wasser bei Reesholm/Stexwig
 ]
 
 

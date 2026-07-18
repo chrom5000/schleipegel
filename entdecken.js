@@ -26,7 +26,7 @@
      Bake (entdecken.json). Fahren der Route: Task 11. ────────────── */
   const ROUTEN = [
     { id: 'wikinger', name: '🛡 Wikinger & Welterbe',
-      ziele: ['haithabu', 'wikinger-museum-haithabu', 'wikingerhaeuser-haithabu', 'danewerk', 'danevirke-museum'] },
+      ziele: ['haithabu', 'wikinger-museum-haithabu', 'wikingerhaeuser-haithabu', 'danewerk', 'danevirke-museum', 'schlei-seesperrwerk'] },
     { id: 'kirchen', name: '⛪ Kirchen der Schlei',
       ziele: ['sankt-petri-dom-zu-schleswig', 'sankt-johannis-kloster-vor-schleswig', 'kirche-sieseby', 'kirche-karby', 'sankt-nikolai'] },
     { id: 'maritim', name: '⚓ Maritime Wahrzeichen',
