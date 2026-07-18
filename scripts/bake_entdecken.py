@@ -208,13 +208,13 @@ KURATIERT = {
 # Bedeutende Orte/Ensembles, die OSM nur als place=* führt (nicht historic/tourism) —
 # von Hand als kuratierte Ziele. Foto/Attribution kommen aus Wikipedia.
 ZUSATZ_ORTE = [
-    {'id': 'arnis', 'name': 'Arnis', 'cat': 'denkmal', 'lon': 9.9339, 'lat': 54.6297,
+    {'id': 'arnis', 'name': 'Arnis', 'cat': 'denkmal', 'lon': 9.93275, 'lat': 54.63008,
      'wiki': 'Arnis'},
-    {'id': 'maasholm', 'name': 'Maasholm', 'cat': 'denkmal', 'lon': 10.0106, 'lat': 54.6862,
+    {'id': 'maasholm', 'name': 'Maasholm', 'cat': 'denkmal', 'lon': 9.99151, 'lat': 54.68433,
      'wiki': 'Maasholm'},
-    {'id': 'missunde', 'name': 'Missunde', 'cat': 'denkmal', 'lon': 9.7358, 'lat': 54.5147,
+    {'id': 'missunde', 'name': 'Missunde', 'cat': 'denkmal', 'lon': 9.72033, 'lat': 54.5215,
      'wiki': 'Gefecht von Missunde'},
-    {'id': 'sieseby', 'name': 'Sieseby', 'cat': 'denkmal', 'lon': 9.8686, 'lat': 54.5533,
+    {'id': 'sieseby', 'name': 'Sieseby', 'cat': 'denkmal', 'lon': 9.86126, 'lat': 54.59402,
      'wiki': 'Sieseby'},
     {'id': 'schlei-seesperrwerk', 'name': 'Schlei-Seesperrwerk', 'cat': 'wikinger', 'lon': 9.6449, 'lat': 54.5143,
      'wiki': 'Schlei-Seesperrwerk'},   # Wikinger-Sperranlage (Danewerk/UNESCO), unter Wasser bei Reesholm/Stexwig
