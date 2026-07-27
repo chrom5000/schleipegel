@@ -1,5 +1,5 @@
 {
- "updated": "2026-07-26T10:24:06+00:00",
+ "updated": "2026-07-27T13:45:18+00:00",
  "quelle": "Land Schleswig-Holstein, Badegewässer-Daten (dl-de/by-2-0)",
  "spots": [
   {
@@ -206,10 +206,10 @@
    "lat": 54.51195,
    "lon": 9.588478,
    "hinweis": "Unter normalen Wetter- und Umgebungsbedingungen sind keine Auswirkungen auf die Badegewässerqualität bekannt",
-   "datum": "2026-06-16",
-   "ecoli": 53.0,
-   "entero": 32.0,
-   "wasserTemp": 16.0
+   "datum": "2026-07-14",
+   "ecoli": 10.0,
+   "entero": 10.0,
+   "wasserTemp": 23.0
   }
  ]
 }
