@@ -1,5 +1,5 @@
 {
- "updated": "2026-08-18T04:58:47+00:00",
+ "updated": "2026-08-19T04:58:56+00:00",
  "quelle": "Land Schleswig-Holstein, Badegewässer-Daten (dl-de/by-2-0)",
  "spots": [
   {
@@ -63,10 +63,10 @@
    "lat": 54.629107,
    "lon": 9.928071,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
+   "datum": "2026-08-11",
    "ecoli": 21.0,
    "entero": 10.0,
-   "wasserTemp": 22.0
+   "wasserTemp": 19.0
   },
   {
    "id": "DESH_PR_0260",
@@ -74,10 +74,10 @@
    "lat": 54.593982,
    "lon": 9.829714,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 21.0,
+   "datum": "2026-08-11",
+   "ecoli": 10.0,
    "entero": 10.0,
-   "wasserTemp": 23.0
+   "wasserTemp": 19.0
   },
   {
    "id": "DESH_PR_0261",
@@ -85,10 +85,10 @@
    "lat": 54.581811,
    "lon": 9.813346,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
+   "datum": "2026-08-11",
    "ecoli": 10.0,
-   "entero": 10.0,
-   "wasserTemp": 22.0
+   "entero": 21.0,
+   "wasserTemp": 18.0
   },
   {
    "id": "DESH_PR_0262",
@@ -96,10 +96,10 @@
    "lat": 54.571105,
    "lon": 9.765498,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 76.0,
+   "datum": "2026-08-11",
+   "ecoli": 32.0,
    "entero": 10.0,
-   "wasserTemp": 21.0
+   "wasserTemp": 16.0
   },
   {
    "id": "DESH_PR_0263",
@@ -107,10 +107,10 @@
    "lat": 54.535709,
    "lon": 9.736444,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 10.0,
-   "entero": 32.0,
-   "wasserTemp": 20.0
+   "datum": "2026-08-11",
+   "ecoli": 65.0,
+   "entero": 10.0,
+   "wasserTemp": 16.0
   },
   {
    "id": "DESH_PR_0264",
@@ -118,10 +118,10 @@
    "lat": 54.527264,
    "lon": 9.701518,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
+   "datum": "2026-08-11",
    "ecoli": 10.0,
    "entero": 10.0,
-   "wasserTemp": 20.0
+   "wasserTemp": 16.0
   },
   {
    "id": "DESH_PR_0265",
@@ -129,10 +129,10 @@
    "lat": 54.529967,
    "lon": 9.632672,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 10.0,
+   "datum": "2026-08-11",
+   "ecoli": 53.0,
    "entero": 10.0,
-   "wasserTemp": 20.0
+   "wasserTemp": 16.0
   },
   {
    "id": "DESH_PR_0266",
@@ -140,10 +140,10 @@
    "lat": 54.512632,
    "lon": 9.559904,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 170.0,
-   "entero": 10.0,
-   "wasserTemp": 23.0
+   "datum": "2026-08-11",
+   "ecoli": 76.0,
+   "entero": 76.0,
+   "wasserTemp": 20.0
   },
   {
    "id": "DESH_PR_0267",
@@ -151,10 +151,10 @@
    "lat": 54.508038,
    "lon": 9.601451,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 10.0,
-   "entero": 10.0,
-   "wasserTemp": 22.0
+   "datum": "2026-08-11",
+   "ecoli": 76.0,
+   "entero": 32.0,
+   "wasserTemp": 19.0
   },
   {
    "id": "DESH_PR_0268",
@@ -162,10 +162,10 @@
    "lat": 54.49927,
    "lon": 9.673472,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 195.0,
-   "entero": 76.0,
-   "wasserTemp": 22.0
+   "datum": "2026-08-11",
+   "ecoli": 10.0,
+   "entero": 10.0,
+   "wasserTemp": 20.0
   },
   {
    "id": "DESH_PR_0269",
@@ -173,10 +173,10 @@
    "lat": 54.483778,
    "lon": 9.584138,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 10.0,
+   "datum": "2026-08-11",
+   "ecoli": 76.0,
    "entero": 10.0,
-   "wasserTemp": 24.0
+   "wasserTemp": 18.0
   },
   {
    "id": "DESH_PR_0270",
@@ -184,10 +184,10 @@
    "lat": 54.480709,
    "lon": 9.583964,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 21.0,
+   "datum": "2026-08-11",
+   "ecoli": 10.0,
    "entero": 10.0,
-   "wasserTemp": 24.0
+   "wasserTemp": 18.0
   },
   {
    "id": "DESH_PR_0284",
@@ -195,10 +195,10 @@
    "lat": 54.512038,
    "lon": 9.64188,
    "hinweis": "Nach Starkregenereignissen kann es an dieser Badestelle vorübergehend zur Beeinträchtigung der Badegewässerqualität kommen",
-   "datum": "2026-07-14",
-   "ecoli": 10.0,
+   "datum": "2026-08-11",
+   "ecoli": 43.0,
    "entero": 10.0,
-   "wasserTemp": 22.0
+   "wasserTemp": 19.0
   },
   {
    "id": "DESH_PR_0349",
@@ -206,10 +206,10 @@
    "lat": 54.51195,
    "lon": 9.588478,
    "hinweis": "Unter normalen Wetter- und Umgebungsbedingungen sind keine Auswirkungen auf die Badegewässerqualität bekannt",
-   "datum": "2026-07-14",
-   "ecoli": 10.0,
+   "datum": "2026-08-11",
+   "ecoli": 21.0,
    "entero": 10.0,
-   "wasserTemp": 23.0
+   "wasserTemp": 20.0
   }
  ]
 }
